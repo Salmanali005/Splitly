@@ -5,6 +5,8 @@ from decimal import Decimal
 from enum import Enum
 
 # Enums
+
+
 class TripStatus(str, Enum):
     PLANNING = "planning"
     ACTIVE = "active"
