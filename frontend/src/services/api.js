@@ -34,6 +34,7 @@ export const auth = {
 };
 
 // ============ TRIPS ============
+// ============ TRIPS ============
 export const trips = {
   getAll: () => api.get('/trips'),
   getOne: (id) => api.get(`/trips/${id}`),
@@ -43,6 +44,10 @@ export const trips = {
   getMembers: (id) => api.get(`/trips/${id}/members`),
   getStatistics: (id) => api.get(`/trips/${id}/statistics`),
   getBalances: (id) => api.get(`/trips/${id}/balances`),
+  getBalanceSummary: (id) => api.get(`/trips/${id}/balance-summary`),
+  getSimplifiedDebts: (id) => api.get(`/trips/${id}/debts/simplified`),
+  getSettlements: (id) => api.get(`/trips/${id}/settlements`),
+  createSettlement: (id, data) => api.post(`/trips/${id}/settlements`, data),
   invite: (id, email) => api.post(`/trips/${id}/invite?email=${email}`),
 };
 

@@ -7,7 +7,6 @@ import { trips } from '../services/api';
 const Trips = () => {
   const [loading, setLoading] = useState(true);
   const [tripsList, setTripsList] = useState([]);
-  const [error, setError] = useState('');
 
   useEffect(() => {
     fetchTrips();
@@ -20,7 +19,6 @@ const Trips = () => {
       setTripsList(response.data || []);
     } catch (err) {
       console.error('Error fetching trips:', err);
-      setError('Failed to load trips');
     } finally {
       setLoading(false);
     }
@@ -47,12 +45,6 @@ const Trips = () => {
           <Button variant="primary" size="sm">+ New Trip</Button>
         </Link>
       </div>
-
-      {error && (
-        <div className="bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-900/30 rounded-2xl p-4 mb-4">
-          <p className="text-red-600 dark:text-red-400 text-sm">{error}</p>
-        </div>
-      )}
 
       {tripsList.length === 0 ? (
         <div className="bg-white dark:bg-[#1a1a1a] rounded-2xl border border-gray-200 dark:border-gray-800 p-12 text-center">
@@ -86,14 +78,14 @@ const Trips = () => {
               <div className="flex items-center justify-between text-sm">
                 <div className="flex items-center gap-4">
                   <span className="text-gray-500 dark:text-gray-400">👥 {trip.member_count || 0}</span>
-                  {trip.start_date && (
-                    <span className="text-gray-500 dark:text-gray-400">
-                      📅 {new Date(trip.start_date).toLocaleDateString()}
-                    </span>
-                  )}
+                  <span className="text-gray-500 dark:text-gray-400">💰 ${parseFloat(trip.total_expenses || 0).toFixed(2)}</span>
                 </div>
-                <span className="font-medium text-black dark:text-white">
-                  ${parseFloat(trip.total_expenses || 0).toFixed(2)}
+                <span className={`font-medium ${
+                  trip.user_balance > 0 ? 'text-green-600 dark:text-green-400' :
+                  trip.user_balance < 0 ? 'text-red-600 dark:text-red-400' :
+                  'text-gray-500 dark:text-gray-400'
+                }`}>
+                  {trip.user_balance > 0 ? '+' : ''}{trip.user_balance.toFixed(2)}
                 </span>
               </div>
             </Link>

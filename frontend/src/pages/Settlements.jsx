@@ -1,49 +1,95 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import MainLayout from '../Components/layout/MainLayout';
-import Button from '../Components/common/Button';
+import { trips } from '../services/api';
 
 const Settlements = () => {
-  const [settlements] = useState([
-    { id: 1, from: 'You', to: 'Alice Smith', amount: '$80', date: 'Jun 20, 2026', status: 'Completed' },
-    { id: 2, from: 'Bob Johnson', to: 'You', amount: '$50', date: 'Jun 18, 2026', status: 'Pending' },
-    { id: 3, from: 'Emily Davis', to: 'You', amount: '$70', date: 'Jun 15, 2026', status: 'Completed' },
-    { id: 4, from: 'You', to: 'Alice Smith', amount: '$30', date: 'Jun 12, 2026', status: 'Completed' },
-  ]);
+  const [loading, setLoading] = useState(true);
+  const [tripsList, setTripsList] = useState([]);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    fetchAllTrips();
+  }, []);
+
+  const fetchAllTrips = async () => {
+    try {
+      setLoading(true);
+      const response = await trips.getAll();
+      setTripsList(response.data || []);
+    } catch (err) {
+      console.error('Error fetching trips:', err);
+      setError('Failed to load trips');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <MainLayout>
+        <div className="flex items-center justify-center h-64">
+          <p className="text-gray-500 dark:text-gray-400">Loading settlements...</p>
+        </div>
+      </MainLayout>
+    );
+  }
 
   return (
     <MainLayout>
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-6">
-        <div>
-          <h1 className="text-xl lg:text-2xl font-bold text-black dark:text-white tracking-tight">Settlements</h1>
-          <p className="text-gray-500 dark:text-gray-400 mt-0.5 text-sm">Payment history</p>
-        </div>
-        <Button variant="primary" size="sm">+ New Settlement</Button>
+      <div className="mb-6">
+        <h1 className="text-xl lg:text-2xl font-bold text-black dark:text-white tracking-tight">Settlements</h1>
+        <p className="text-gray-500 dark:text-gray-400 mt-0.5 text-sm">Payment history across all trips</p>
       </div>
 
-      <div className="bg-white dark:bg-[#1a1a1a] rounded-2xl border border-gray-200 dark:border-gray-800 p-5">
-        <div className="divide-y divide-gray-100 dark:divide-gray-800">
-          {settlements.map((settlement) => (
-            <div key={settlement.id} className="py-3 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
-              <div>
-                <p className="text-sm text-black dark:text-white">
-                  <span className="font-medium">{settlement.from}</span> paid <span className="font-medium">{settlement.to}</span>
-                </p>
-                <p className="text-xs text-gray-500 dark:text-gray-400">{settlement.date}</p>
-              </div>
-              <div className="flex items-center gap-3 w-full sm:w-auto">
-                <span className="text-sm font-medium text-black dark:text-white">{settlement.amount}</span>
+      {error && (
+        <div className="mb-4 p-3 rounded-xl border border-red-200 dark:border-red-900/30 bg-red-50 dark:bg-red-900/10">
+          <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+        </div>
+      )}
+
+      {tripsList.length === 0 ? (
+        <div className="bg-white dark:bg-[#1a1a1a] rounded-2xl border border-gray-200 dark:border-gray-800 p-12 text-center">
+          <p className="text-gray-500 dark:text-gray-400">No trips yet</p>
+          <Link to="/add-trip" className="mt-3 inline-block text-sm text-black dark:text-white hover:underline">
+            Create your first trip →
+          </Link>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {tripsList.map((trip) => (
+            <Link 
+              key={trip.id} 
+              to={`/trip/${trip.id}/settlements`}
+              className="bg-white dark:bg-[#1a1a1a] rounded-2xl border border-gray-200 dark:border-gray-800 p-5 hover:shadow-md transition-all hover:-translate-y-0.5 group"
+            >
+              <div className="flex justify-between items-start mb-3">
+                <div>
+                  <h3 className="font-semibold text-black dark:text-white">{trip.name}</h3>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">{trip.destination || 'No destination'}</p>
+                </div>
                 <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${
-                  settlement.status === 'Completed' 
-                    ? 'bg-gray-200 dark:bg-gray-700 text-black dark:text-white'
-                    : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400'
+                  trip.status === 'active' ? 'bg-gray-200 dark:bg-gray-700 text-black dark:text-white' :
+                  trip.status === 'completed' ? 'bg-gray-50 dark:bg-gray-900 text-gray-400 dark:text-gray-500' :
+                  'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400'
                 }`}>
-                  {settlement.status}
+                  {trip.status || 'Planning'}
                 </span>
               </div>
-            </div>
+              
+              <div className="flex items-center justify-between text-sm">
+                <div className="flex items-center gap-4">
+                  <span className="text-gray-500 dark:text-gray-400">👥 {trip.member_count || 0}</span>
+                  <span className="text-gray-500 dark:text-gray-400">💰 ${parseFloat(trip.total_expenses || 0).toFixed(2)}</span>
+                </div>
+                <span className="text-gray-500 dark:text-gray-400">
+                  {trip.expense_count || 0} expenses
+                </span>
+              </div>
+            </Link>
           ))}
         </div>
-      </div>
+      )}
     </MainLayout>
   );
 };

@@ -44,19 +44,19 @@ const AddTrip = () => {
 
   return (
     <MainLayout>
-      <div className="mb-5">
-        <h1 className="text-xl lg:text-2xl font-bold text-black dark:text-white tracking-tight">Create New Trip</h1>
-        <p className="text-gray-500 dark:text-gray-400 mt-0.5 text-sm">Plan your next adventure</p>
+      <div className="mb-6 text-center">
+        <h1 className="text-2xl lg:text-3xl font-bold text-black dark:text-white tracking-tight">Create New Trip</h1>
+        <p className="text-gray-500 dark:text-gray-400 mt-1 text-sm">Plan your next adventure</p>
       </div>
 
-      <div className="bg-white dark:bg-[#1a1a1a] rounded-2xl border border-gray-200 dark:border-gray-800 shadow-sm p-5 max-w-xl">
+      <div className="bg-white dark:bg-[#1a1a1a] rounded-2xl border border-gray-200 dark:border-gray-800 shadow-sm p-6 lg:p-8 max-w-xl mx-auto">
         {error && (
           <div className="mb-4 p-3 rounded-xl border border-red-200 dark:border-red-900/30 bg-red-50 dark:bg-red-900/10">
             <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-3.5">
+        <form onSubmit={handleSubmit} className="space-y-4">
           <Input
             label="Trip Name"
             type="text"
@@ -76,7 +76,7 @@ const AddTrip = () => {
             placeholder="e.g., Bali, Indonesia"
           />
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Input
               label="Start Date"
               type="date"
@@ -94,13 +94,13 @@ const AddTrip = () => {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
               Currency
             </label>
             <select
               value={formData.currency}
               onChange={(e) => setFormData({ ...formData, currency: e.target.value })}
-              className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-black text-black dark:text-white text-sm focus:outline-none focus:ring-1 focus:ring-black dark:focus:ring-white"
+              className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-black text-black dark:text-white focus:outline-none focus:ring-1 focus:ring-black dark:focus:ring-white"
             >
               <option value="USD">USD</option>
               <option value="EUR">EUR</option>
@@ -111,26 +111,26 @@ const AddTrip = () => {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
               Notes
             </label>
             <textarea
               value={formData.notes}
               onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
               placeholder="Any additional details..."
-              rows="2"
-              className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-black text-black dark:text-white text-sm placeholder-gray-400 dark:placeholder-gray-600 focus:outline-none focus:ring-1 focus:ring-black dark:focus:ring-white resize-none"
+              rows="3"
+              className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-black text-black dark:text-white placeholder-gray-400 dark:placeholder-gray-600 focus:outline-none focus:ring-1 focus:ring-black dark:focus:ring-white resize-none"
             />
           </div>
 
-          <div className="flex flex-col sm:flex-row gap-2.5 pt-2">
-            <Button type="submit" variant="primary" size="md" fullWidth loading={loading}>
+          <div className="flex flex-col sm:flex-row gap-3 pt-2">
+            <Button type="submit" variant="primary" size="lg" fullWidth loading={loading}>
               Create Trip
             </Button>
             <Button 
               type="button" 
               variant="secondary" 
-              size="md" 
+              size="lg" 
               fullWidth
               onClick={() => navigate('/dashboard')}
             >

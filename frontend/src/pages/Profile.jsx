@@ -1,17 +1,82 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import MainLayout from '../Components/layout/MainLayout';
 import Input from '../Components/common/Input';
 import Button from '../Components/common/Button';
+import { auth } from '../services/api';
 
 const Profile = () => {
+  const navigate = useNavigate();
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const [user, setUser] = useState(null);
   const [formData, setFormData] = useState({
-    name: 'John Doe',
-    email: 'john@example.com',
-    phone: '+1 234 567 8900',
-    currentPassword: '',
-    newPassword: '',
-    confirmPassword: '',
+    name: '',
+    email: '',
+    phone: '',
   });
+
+  useEffect(() => {
+    fetchProfile();
+  }, []);
+
+  const fetchProfile = async () => {
+    try {
+      setLoading(true);
+      const response = await auth.getMe();
+      setUser(response.data);
+      setFormData({
+        name: response.data.name || '',
+        email: response.data.email || '',
+        phone: response.data.phone || '',
+      });
+    } catch (err) {
+      console.error('Error fetching profile:', err);
+      if (err.response?.status === 401) {
+        navigate('/login');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setSaving(true);
+    setError('');
+    setSuccess('');
+
+    try {
+      await auth.updateProfile({
+        name: formData.name,
+        phone: formData.phone,
+      });
+      setSuccess('Profile updated successfully!');
+    } catch (err) {
+      setError(err.response?.data?.detail || 'Failed to update profile');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('refresh_token');
+    localStorage.removeItem('user');
+    navigate('/login');
+  };
+
+  if (loading) {
+    return (
+      <MainLayout>
+        <div className="flex items-center justify-center h-64">
+          <p className="text-gray-500 dark:text-gray-400">Loading profile...</p>
+        </div>
+      </MainLayout>
+    );
+  }
 
   return (
     <MainLayout>
@@ -21,82 +86,79 @@ const Profile = () => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* Profile Information */}
         <div className="bg-white dark:bg-[#1a1a1a] rounded-2xl border border-gray-200 dark:border-gray-800 p-5">
           <h3 className="font-semibold text-black dark:text-white mb-4">Profile Information</h3>
           
           <div className="flex items-center gap-4 mb-4">
             <div className="w-16 h-16 rounded-full bg-black dark:bg-white flex items-center justify-center text-2xl font-medium text-white dark:text-black">
-              JD
+              {formData.name?.charAt(0) || 'U'}
             </div>
             <div>
               <p className="font-medium text-black dark:text-white">{formData.name}</p>
               <p className="text-sm text-gray-500 dark:text-gray-400">{formData.email}</p>
-              <button className="text-xs text-gray-500 dark:text-gray-400 hover:text-black dark:hover:text-white transition-colors">Change photo</button>
             </div>
           </div>
 
-          <div className="space-y-3.5">
+          {error && (
+            <div className="mb-4 p-3 rounded-xl border border-red-200 dark:border-red-900/30 bg-red-50 dark:bg-red-900/10">
+              <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+            </div>
+          )}
+
+          {success && (
+            <div className="mb-4 p-3 rounded-xl border border-green-200 dark:border-green-900/30 bg-green-50 dark:bg-green-900/10">
+              <p className="text-sm text-green-600 dark:text-green-400">{success}</p>
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit} className="space-y-3.5">
             <Input
               label="Full Name"
               type="text"
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              required
             />
             <Input
               label="Email"
               type="email"
               value={formData.email}
-              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+              disabled
+              className="opacity-60 cursor-not-allowed"
             />
             <Input
               label="Phone Number"
               type="tel"
               value={formData.phone}
               onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+              placeholder="+1 234 567 8900"
             />
-            <Button variant="primary" size="sm" fullWidth>Save Changes</Button>
-          </div>
+            <Button type="submit" variant="primary" size="sm" fullWidth loading={saving}>
+              Save Changes
+            </Button>
+          </form>
         </div>
 
-        {/* Change Password */}
         <div className="bg-white dark:bg-[#1a1a1a] rounded-2xl border border-gray-200 dark:border-gray-800 p-5">
-          <h3 className="font-semibold text-black dark:text-white mb-4">Change Password</h3>
-          <div className="space-y-3.5">
-            <Input
-              label="Current Password"
-              type="password"
-              value={formData.currentPassword}
-              onChange={(e) => setFormData({ ...formData, currentPassword: e.target.value })}
-              placeholder="••••••••"
-            />
-            <Input
-              label="New Password"
-              type="password"
-              value={formData.newPassword}
-              onChange={(e) => setFormData({ ...formData, newPassword: e.target.value })}
-              placeholder="••••••••"
-              helper="Must be at least 8 characters"
-            />
-            <Input
-              label="Confirm New Password"
-              type="password"
-              value={formData.confirmPassword}
-              onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
-              placeholder="••••••••"
-            />
-            <Button variant="primary" size="sm" fullWidth>Update Password</Button>
+          <h3 className="font-semibold text-black dark:text-white mb-4">Account</h3>
+          
+          <div className="space-y-4">
+            <button 
+              onClick={handleLogout}
+              className="w-full text-left px-4 py-3 rounded-xl border border-red-200 dark:border-red-900/30 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/10 transition-colors"
+            >
+              <span className="font-medium">Logout</span>
+              <p className="text-sm text-red-500 dark:text-red-400/70">Sign out of your account</p>
+            </button>
+
+            <div className="border-t border-gray-200 dark:border-gray-800 pt-4">
+              <button className="w-full text-left px-4 py-3 rounded-xl border border-red-200 dark:border-red-900/30 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/10 transition-colors">
+                <span className="font-medium">Delete Account</span>
+                <p className="text-sm text-red-500 dark:text-red-400/70">Permanently delete your account and all data</p>
+              </button>
+            </div>
           </div>
         </div>
-      </div>
-
-      {/* Danger Zone */}
-      <div className="mt-4 bg-white dark:bg-[#1a1a1a] rounded-2xl border border-red-200 dark:border-red-900/30 p-5">
-        <h3 className="font-semibold text-red-600 dark:text-red-400 mb-1">Danger Zone</h3>
-        <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">Permanently delete your account and all data</p>
-        <Button variant="secondary" size="sm" className="border-red-300 dark:border-red-800 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20">
-          Delete Account
-        </Button>
       </div>
     </MainLayout>
   );

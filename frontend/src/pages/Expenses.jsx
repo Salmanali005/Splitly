@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import MainLayout from '../Components/layout/MainLayout';
 import { trips } from '../services/api';
 
-const Balances = () => {
+const Expenses = () => {
   const [loading, setLoading] = useState(true);
   const [tripsList, setTripsList] = useState([]);
   const [error, setError] = useState('');
@@ -29,7 +29,7 @@ const Balances = () => {
     return (
       <MainLayout>
         <div className="flex items-center justify-center h-64">
-          <p className="text-gray-500 dark:text-gray-400">Loading balances...</p>
+          <p className="text-gray-500 dark:text-gray-400">Loading expenses...</p>
         </div>
       </MainLayout>
     );
@@ -38,8 +38,8 @@ const Balances = () => {
   return (
     <MainLayout>
       <div className="mb-6">
-        <h1 className="text-xl lg:text-2xl font-bold text-black dark:text-white tracking-tight">Balances</h1>
-        <p className="text-gray-500 dark:text-gray-400 mt-0.5 text-sm">Your balance across all trips</p>
+        <h1 className="text-xl lg:text-2xl font-bold text-black dark:text-white tracking-tight">Expenses</h1>
+        <p className="text-gray-500 dark:text-gray-400 mt-0.5 text-sm">All expenses across your trips</p>
       </div>
 
       {error && (
@@ -60,7 +60,7 @@ const Balances = () => {
           {tripsList.map((trip) => (
             <Link 
               key={trip.id} 
-              to={`/trip/${trip.id}/balances`}
+              to={`/trip/${trip.id}`}
               className="bg-white dark:bg-[#1a1a1a] rounded-2xl border border-gray-200 dark:border-gray-800 p-5 hover:shadow-md transition-all hover:-translate-y-0.5 group"
             >
               <div className="flex justify-between items-start mb-3">
@@ -79,15 +79,11 @@ const Balances = () => {
               
               <div className="flex items-center justify-between text-sm">
                 <div className="flex items-center gap-4">
-                  <span className="text-gray-500 dark:text-gray-400">👥 {trip.member_count || 0}</span>
+                  <span className="text-gray-500 dark:text-gray-400">📝 {trip.expense_count || 0} expenses</span>
                   <span className="text-gray-500 dark:text-gray-400">💰 ${parseFloat(trip.total_expenses || 0).toFixed(2)}</span>
                 </div>
-                <span className={`font-medium ${
-                  trip.user_balance > 0 ? 'text-green-600 dark:text-green-400' :
-                  trip.user_balance < 0 ? 'text-red-600 dark:text-red-400' :
-                  'text-gray-500 dark:text-gray-400'
-                }`}>
-                  {trip.user_balance > 0 ? '+' : ''}{trip.user_balance?.toFixed(2) || '0.00'}
+                <span className="text-sm text-gray-500 dark:text-gray-400 group-hover:text-black dark:group-hover:text-white transition-colors">
+                  View all →
                 </span>
               </div>
             </Link>
@@ -98,4 +94,4 @@ const Balances = () => {
   );
 };
 
-export default Balances;
+export default Expenses;
