@@ -2,7 +2,6 @@ from datetime import datetime
 import secrets
 from database import db
 
-# ============ TRIP CRUD ============
 
 def create_trip(user_id: int, name: str, destination: str = None, 
                 start_date: datetime = None, end_date: datetime = None,
