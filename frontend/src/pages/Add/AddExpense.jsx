@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useParams, Link } from 'react-router-dom';
-import MainLayout from '../Components/layout/MainLayout';
-import Input from '../Components/common/Input';
-import Button from '../Components/common/Button';
-import { trips, expenses } from '../services/api';
+import { useNavigate, useParams } from 'react-router-dom';
+import MainLayout from '../../Components/layout/MainLayout';
+import Input from '../../Components/common/Input';
+import Button from '../../Components/common/Button';
+import { trips, expenses } from '../../services/api';
 
 const AddExpense = () => {
   const { tripId } = useParams();
@@ -21,7 +21,6 @@ const AddExpense = () => {
     category: 'other',
     date: new Date().toISOString().split('T')[0],
     notes: '',
-    split_type: 'shares', // default to shares for family size
   });
 
   const [memberShares, setMemberShares] = useState({});
@@ -43,7 +42,6 @@ const AddExpense = () => {
       setTrip(tripRes.data);
       setMembers(membersRes.data || []);
       
-      // Initialize member shares with 1
       const initialShares = {};
       membersRes.data.forEach(m => {
         initialShares[m.id] = 1;
@@ -97,13 +95,31 @@ const AddExpense = () => {
         return;
       }
 
-      // Build splits based on shares
-      const splits = members.map(member => ({
-        member_id: member.id,
-        share_amount: calculateMemberAmount(member.id),
-        split_type: 'shares',
-        split_value: parseInt(memberShares[member.id]) || 0
-      }));
+      if (!formData.paid_by) {
+        setError('Please select who paid');
+        setSubmitting(false);
+        return;
+      }
+
+      let allocated = 0;
+      const splits = members.map((member, index) => {
+        const share = parseInt(memberShares[member.id]) || 0;
+        let shareAmount;
+
+        if (index === members.length - 1) {
+          shareAmount = parseFloat((amount - allocated).toFixed(2));
+        } else {
+          shareAmount = parseFloat(((amount * share) / totalShares).toFixed(2));
+          allocated += shareAmount;
+        }
+
+        return {
+          member_id: member.id,
+          share_amount: shareAmount,
+          split_type: 'shares',
+          split_value: share
+        };
+      });
 
       const expenseData = {
         description: formData.description,
@@ -131,7 +147,10 @@ const AddExpense = () => {
     return (
       <MainLayout>
         <div className="flex items-center justify-center h-64">
-          <p className="text-gray-500 dark:text-gray-400">Loading...</p>
+          <div className="flex flex-col items-center gap-3">
+            <div className="w-8 h-8 border-2 border-black dark:border-white border-t-transparent rounded-full animate-spin" />
+            <p className="text-sm text-gray-500 dark:text-gray-400">Loading...</p>
+          </div>
         </div>
       </MainLayout>
     );
@@ -141,16 +160,35 @@ const AddExpense = () => {
 
   return (
     <MainLayout>
-      <button onClick={() => navigate(`/trip/${tripId}`)} className="flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 hover:text-black dark:hover:text-white transition-colors mb-4">
-        ← Back to Trip
+      <style>{`
+        @keyframes fadeUp {
+          from { opacity: 0; transform: translateY(12px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        .fade-up { animation: fadeUp 0.4s ease both; }
+        .fade-up-1 { animation-delay: 0.05s; }
+        .fade-up-2 { animation-delay: 0.1s; }
+        .fade-up-3 { animation-delay: 0.15s; }
+        .fade-up-4 { animation-delay: 0.2s; }
+      `}</style>
+
+      <button
+        onClick={() => navigate(`/trip/${tripId}`)}
+        className="fade-up fade-up-1 flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 hover:text-black dark:hover:text-white transition-colors mb-4"
+      >
+        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
+        </svg>
+        Back to Trip
       </button>
 
-      <div className="mb-6">
-        <h1 className="text-xl lg:text-2xl font-bold text-black dark:text-white tracking-tight">Add Expense</h1>
-        <p className="text-gray-500 dark:text-gray-400 mt-0.5 text-sm">{trip?.name} • Add a new expense</p>
+      <div className="fade-up fade-up-1 mb-6 text-center">
+        <p className="text-xs font-semibold tracking-widest text-gray-400 dark:text-gray-500 uppercase mb-1">New Expense</p>
+        <h1 className="text-2xl lg:text-3xl font-bold text-black dark:text-white tracking-tight">Add Expense</h1>
+        <p className="text-gray-500 dark:text-gray-400 mt-1 text-sm">{trip?.name} • Record a new expense</p>
       </div>
 
-      <div className="bg-white dark:bg-[#1a1a1a] rounded-2xl border border-gray-200 dark:border-gray-800 p-6 max-w-2xl">
+      <div className="fade-up fade-up-2 bg-white dark:bg-[#1a1a1a] rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm p-6 lg:p-8 max-w-xl mx-auto">
         {error && (
           <div className="mb-4 p-3 rounded-xl border border-red-200 dark:border-red-900/30 bg-red-50 dark:bg-red-900/10">
             <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
@@ -158,7 +196,6 @@ const AddExpense = () => {
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Description */}
           <Input
             label="Description"
             type="text"
@@ -168,7 +205,6 @@ const AddExpense = () => {
             required
           />
 
-          {/* Amount */}
           <Input
             label={`Amount (${trip?.currency || 'USD'})`}
             type="number"
@@ -179,7 +215,6 @@ const AddExpense = () => {
             required
           />
 
-          {/* Paid By */}
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
               Paid By
@@ -192,14 +227,13 @@ const AddExpense = () => {
             >
               <option value="">Select who paid</option>
               {members.map((member) => (
-                <option key={member.id} value={member.id}>
+                <option key={member.id} value={member.user_id}>
                   {member.name}
                 </option>
               ))}
             </select>
           </div>
 
-          {/* Category */}
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
               Category
@@ -218,7 +252,6 @@ const AddExpense = () => {
             </select>
           </div>
 
-          {/* Date */}
           <Input
             label="Date"
             type="date"
@@ -226,7 +259,6 @@ const AddExpense = () => {
             onChange={(e) => setFormData({ ...formData, date: e.target.value })}
           />
 
-          {/* Notes */}
           <Input
             label="Notes (Optional)"
             type="text"
@@ -235,8 +267,7 @@ const AddExpense = () => {
             placeholder="Any additional details..."
           />
 
-          {/* Split by Family Members */}
-          <div className="border-t border-gray-200 dark:border-gray-800 pt-4">
+          <div className="border-t border-gray-200 dark:border-gray-800 pt-4 fade-up fade-up-3">
             <div className="flex justify-between items-center mb-3">
               <h3 className="font-semibold text-black dark:text-white">Split by Family Size</h3>
               <span className="text-sm text-gray-500 dark:text-gray-400">
@@ -263,7 +294,7 @@ const AddExpense = () => {
                     </div>
                     
                     <div className="flex items-center gap-3">
-                      <label className="text-sm text-gray-500 dark:text-gray-400">Family members:</label>
+                      <label className="text-sm text-gray-500 dark:text-gray-400">Family:</label>
                       <input
                         type="number"
                         min="0"
@@ -291,14 +322,14 @@ const AddExpense = () => {
             </div>
           </div>
 
-          <div className="flex gap-3 pt-4">
+          <div className="flex gap-3 pt-4 fade-up fade-up-4">
             <Button type="submit" variant="primary" size="md" fullWidth loading={submitting}>
               Add Expense
             </Button>
-            <Button 
-              type="button" 
-              variant="secondary" 
-              size="md" 
+            <Button
+              type="button"
+              variant="secondary"
+              size="md"
               fullWidth
               onClick={() => navigate(`/trip/${tripId}`)}
             >

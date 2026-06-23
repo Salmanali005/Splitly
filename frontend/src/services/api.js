@@ -34,7 +34,6 @@ export const auth = {
 };
 
 // ============ TRIPS ============
-// ============ TRIPS ============
 export const trips = {
   getAll: () => api.get('/trips'),
   getOne: (id) => api.get(`/trips/${id}`),
@@ -42,6 +41,7 @@ export const trips = {
   update: (id, data) => api.put(`/trips/${id}`, data),
   delete: (id) => api.delete(`/trips/${id}`),
   getMembers: (id) => api.get(`/trips/${id}/members`),
+  getInvitations: (id) => api.get(`/trips/${id}/invitations`),
   getStatistics: (id) => api.get(`/trips/${id}/statistics`),
   getBalances: (id) => api.get(`/trips/${id}/balances`),
   getBalanceSummary: (id) => api.get(`/trips/${id}/balance-summary`),
@@ -49,6 +49,7 @@ export const trips = {
   getSettlements: (id) => api.get(`/trips/${id}/settlements`),
   createSettlement: (id, data) => api.post(`/trips/${id}/settlements`, data),
   invite: (id, email) => api.post(`/trips/${id}/invite?email=${email}`),
+  cancelInvitation: (id) => api.delete(`/invitations/${id}`),
 };
 
 // ============ EXPENSES ============
@@ -72,6 +73,13 @@ export const settlements = {
   getMyDebts: (tripId) => api.get(`/trips/${tripId}/debts/my`),
   autoSettle: (tripId) => api.post(`/trips/${tripId}/settlements/auto`),
   getStatistics: (tripId) => api.get(`/trips/${tripId}/settlements/statistics`),
+};
+
+// ============ INVITATIONS ============
+export const invitations = {
+  getMyInvitations: () => api.get('/invitations'),
+  accept: (token) => api.post(`/invitations/${token}/accept`),
+  decline: (token) => api.delete(`/invitations/${token}/decline`),
 };
 
 export default api;

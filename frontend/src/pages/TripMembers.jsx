@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import MainLayout from '../Components/layout/MainLayout';
 import Button from '../Components/common/Button';
 import Input from '../Components/common/Input';
@@ -11,6 +11,7 @@ const TripMembers = () => {
   const [loading, setLoading] = useState(true);
   const [trip, setTrip] = useState(null);
   const [members, setMembers] = useState([]);
+  const [invitations, setInvitations] = useState([]);
   const [showInvite, setShowInvite] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
   const [error, setError] = useState('');
@@ -25,13 +26,15 @@ const TripMembers = () => {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [tripRes, membersRes] = await Promise.all([
+      const [tripRes, membersRes, invitationsRes] = await Promise.all([
         trips.getOne(tripId),
-        trips.getMembers(tripId)
+        trips.getMembers(tripId),
+        trips.getInvitations(tripId) // You'll need to add this API endpoint
       ]);
       
       setTrip(tripRes.data);
       setMembers(membersRes.data || []);
+      setInvitations(invitationsRes.data || []);
     } catch (err) {
       console.error('Error fetching data:', err);
       setError('Failed to load data');
@@ -50,9 +53,18 @@ const TripMembers = () => {
       setSuccess(`Invitation sent to ${inviteEmail}`);
       setInviteEmail('');
       setShowInvite(false);
-      fetchData(); // Refresh member list
+      fetchData();
     } catch (err) {
       setError(err.response?.data?.detail || 'Failed to send invitation');
+    }
+  };
+
+  const handleCancelInvitation = async (invitationId) => {
+    try {
+      await trips.cancelInvitation(invitationId);
+      fetchData();
+    } catch (err) {
+      setError('Failed to cancel invitation');
     }
   };
 
@@ -61,19 +73,6 @@ const TripMembers = () => {
       <MainLayout>
         <div className="flex items-center justify-center h-64">
           <p className="text-gray-500 dark:text-gray-400">Loading members...</p>
-        </div>
-      </MainLayout>
-    );
-  }
-
-  if (error && !trip) {
-    return (
-      <MainLayout>
-        <div className="bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-900/30 rounded-2xl p-6 text-center">
-          <p className="text-red-600 dark:text-red-400">{error}</p>
-          <button onClick={() => navigate('/members')} className="mt-3 text-sm text-black dark:text-white hover:underline">
-            Back to Members
-          </button>
         </div>
       </MainLayout>
     );
@@ -109,6 +108,7 @@ const TripMembers = () => {
         </div>
       )}
 
+      {/* Invite Modal */}
       {showInvite && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
           <div className="bg-white dark:bg-[#1a1a1a] rounded-2xl border border-gray-200 dark:border-gray-800 p-6 max-w-md w-full">
@@ -131,6 +131,37 @@ const TripMembers = () => {
         </div>
       )}
 
+      {/* Pending Invitations */}
+      {invitations.length > 0 && (
+        <div className="bg-white dark:bg-[#1a1a1a] rounded-2xl border border-gray-200 dark:border-gray-800 p-5 mb-4">
+          <h3 className="font-semibold text-black dark:text-white mb-3">Pending Invitations</h3>
+          <div className="divide-y divide-gray-100 dark:divide-gray-800">
+            {invitations.map((invite) => (
+              <div key={invite.id} className="py-3 flex justify-between items-center">
+                <div>
+                  <p className="text-sm text-black dark:text-white">{invite.email}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    Sent {new Date(invite.created_at).toLocaleDateString()}
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <span className="text-xs px-2 py-1 rounded-full bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400">
+                    Pending
+                  </span>
+                  <button 
+                    onClick={() => handleCancelInvitation(invite.id)}
+                    className="text-xs text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Members List */}
       <div className="bg-white dark:bg-[#1a1a1a] rounded-2xl border border-gray-200 dark:border-gray-800 overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-800">
           <div className="grid grid-cols-3 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">

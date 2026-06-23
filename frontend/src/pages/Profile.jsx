@@ -72,7 +72,10 @@ const Profile = () => {
     return (
       <MainLayout>
         <div className="flex items-center justify-center h-64">
-          <p className="text-gray-500 dark:text-gray-400">Loading profile...</p>
+          <div className="flex flex-col items-center gap-3">
+            <div className="w-8 h-8 border-2 border-black dark:border-white border-t-transparent rounded-full animate-spin" />
+            <p className="text-sm text-gray-500 dark:text-gray-400">Loading profile...</p>
+          </div>
         </div>
       </MainLayout>
     );
@@ -80,21 +83,31 @@ const Profile = () => {
 
   return (
     <MainLayout>
-      <div className="mb-6">
+      <style>{`
+        @keyframes fadeUp {
+          from { opacity: 0; transform: translateY(12px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        .fade-up { animation: fadeUp 0.4s ease both; }
+        .fade-up-1 { animation-delay: 0.05s; }
+        .fade-up-2 { animation-delay: 0.1s; }
+      `}</style>
+
+      <div className="fade-up fade-up-1 mb-6">
+        <p className="text-xs font-semibold tracking-widest text-gray-400 dark:text-gray-500 uppercase mb-1">Account</p>
         <h1 className="text-xl lg:text-2xl font-bold text-black dark:text-white tracking-tight">Profile</h1>
-        <p className="text-gray-500 dark:text-gray-400 mt-0.5 text-sm">Manage your account settings</p>
+        <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">Manage your account settings</p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <div className="bg-white dark:bg-[#1a1a1a] rounded-2xl border border-gray-200 dark:border-gray-800 p-5">
-          <h3 className="font-semibold text-black dark:text-white mb-4">Profile Information</h3>
-          
-          <div className="flex items-center gap-4 mb-4">
-            <div className="w-16 h-16 rounded-full bg-black dark:bg-white flex items-center justify-center text-2xl font-medium text-white dark:text-black">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 fade-up fade-up-2">
+        {/* Profile Information */}
+        <div className="bg-white dark:bg-[#1a1a1a] rounded-2xl border border-gray-100 dark:border-gray-800 p-6">
+          <div className="flex items-center gap-4 mb-6">
+            <div className="w-16 h-16 rounded-2xl bg-black dark:bg-white flex items-center justify-center text-2xl font-medium text-white dark:text-black">
               {formData.name?.charAt(0) || 'U'}
             </div>
             <div>
-              <p className="font-medium text-black dark:text-white">{formData.name}</p>
+              <p className="font-semibold text-black dark:text-white">{formData.name}</p>
               <p className="text-sm text-gray-500 dark:text-gray-400">{formData.email}</p>
             </div>
           </div>
@@ -106,12 +119,12 @@ const Profile = () => {
           )}
 
           {success && (
-            <div className="mb-4 p-3 rounded-xl border border-green-200 dark:border-green-900/30 bg-green-50 dark:bg-green-900/10">
-              <p className="text-sm text-green-600 dark:text-green-400">{success}</p>
+            <div className="mb-4 p-3 rounded-xl border border-emerald-200 dark:border-emerald-900/30 bg-emerald-50 dark:bg-emerald-900/10">
+              <p className="text-sm text-emerald-600 dark:text-emerald-400">{success}</p>
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-3.5">
+          <form onSubmit={handleSubmit} className="space-y-4">
             <Input
               label="Full Name"
               type="text"
@@ -139,22 +152,23 @@ const Profile = () => {
           </form>
         </div>
 
-        <div className="bg-white dark:bg-[#1a1a1a] rounded-2xl border border-gray-200 dark:border-gray-800 p-5">
+        {/* Account Actions */}
+        <div className="bg-white dark:bg-[#1a1a1a] rounded-2xl border border-gray-100 dark:border-gray-800 p-6">
           <h3 className="font-semibold text-black dark:text-white mb-4">Account</h3>
           
-          <div className="space-y-4">
+          <div className="space-y-3">
             <button 
               onClick={handleLogout}
-              className="w-full text-left px-4 py-3 rounded-xl border border-red-200 dark:border-red-900/30 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/10 transition-colors"
+              className="w-full text-left px-4 py-3 rounded-xl border border-rose-200 dark:border-rose-900/30 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-900/10 transition-colors"
             >
               <span className="font-medium">Logout</span>
-              <p className="text-sm text-red-500 dark:text-red-400/70">Sign out of your account</p>
+              <p className="text-sm text-rose-500 dark:text-rose-400/70">Sign out of your account</p>
             </button>
 
-            <div className="border-t border-gray-200 dark:border-gray-800 pt-4">
-              <button className="w-full text-left px-4 py-3 rounded-xl border border-red-200 dark:border-red-900/30 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/10 transition-colors">
+            <div className="border-t border-gray-100 dark:border-gray-800 pt-3">
+              <button className="w-full text-left px-4 py-3 rounded-xl border border-rose-200 dark:border-rose-900/30 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-900/10 transition-colors">
                 <span className="font-medium">Delete Account</span>
-                <p className="text-sm text-red-500 dark:text-red-400/70">Permanently delete your account and all data</p>
+                <p className="text-sm text-rose-500 dark:text-rose-400/70">Permanently delete your account and all data</p>
               </button>
             </div>
           </div>

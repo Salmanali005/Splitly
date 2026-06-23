@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import MainLayout from '../Components/layout/MainLayout';
-import Input from '../Components/common/Input';
-import Button from '../Components/common/Button';
-import { trips } from '../services/api';
+import MainLayout from '../../Components/layout/MainLayout';
+import Input from '../../Components/common/Input';
+import Button from '../../Components/common/Button';
+import { trips } from '../../services/api';
 
 const AddTrip = () => {
   const navigate = useNavigate();
@@ -44,12 +44,33 @@ const AddTrip = () => {
 
   return (
     <MainLayout>
-      <div className="mb-6 text-center">
+      <style>{`
+        @keyframes fadeUp {
+          from { opacity: 0; transform: translateY(12px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        .fade-up { animation: fadeUp 0.4s ease both; }
+        .fade-up-1 { animation-delay: 0.05s; }
+        .fade-up-2 { animation-delay: 0.1s; }
+      `}</style>
+
+      <button
+        onClick={() => navigate('/trips')}
+        className="fade-up fade-up-1 flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 hover:text-black dark:hover:text-white transition-colors mb-4"
+      >
+        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
+        </svg>
+        Back to Trips
+      </button>
+
+      <div className="fade-up fade-up-1 mb-6 text-center">
+        <p className="text-xs font-semibold tracking-widest text-gray-400 dark:text-gray-500 uppercase mb-1">New Adventure</p>
         <h1 className="text-2xl lg:text-3xl font-bold text-black dark:text-white tracking-tight">Create New Trip</h1>
-        <p className="text-gray-500 dark:text-gray-400 mt-1 text-sm">Plan your next adventure</p>
+        <p className="text-gray-500 dark:text-gray-400 mt-1 text-sm">Plan your next adventure with friends</p>
       </div>
 
-      <div className="bg-white dark:bg-[#1a1a1a] rounded-2xl border border-gray-200 dark:border-gray-800 shadow-sm p-6 lg:p-8 max-w-xl mx-auto">
+      <div className="fade-up fade-up-2 bg-white dark:bg-[#1a1a1a] rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm p-6 lg:p-8 max-w-xl mx-auto">
         {error && (
           <div className="mb-4 p-3 rounded-xl border border-red-200 dark:border-red-900/30 bg-red-50 dark:bg-red-900/10">
             <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
@@ -102,11 +123,11 @@ const AddTrip = () => {
               onChange={(e) => setFormData({ ...formData, currency: e.target.value })}
               className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-black text-black dark:text-white focus:outline-none focus:ring-1 focus:ring-black dark:focus:ring-white"
             >
-              <option value="USD">USD</option>
-              <option value="EUR">EUR</option>
-              <option value="GBP">GBP</option>
-              <option value="INR">INR</option>
-              <option value="PKR">PKR</option>
+              <option value="USD">🇺🇸 USD</option>
+              <option value="EUR">🇪🇺 EUR</option>
+              <option value="GBP">🇬🇧 GBP</option>
+              <option value="INR">🇮🇳 INR</option>
+              <option value="PKR">🇵🇰 PKR</option>
             </select>
           </div>
 
@@ -125,14 +146,14 @@ const AddTrip = () => {
 
           <div className="flex flex-col sm:flex-row gap-3 pt-2">
             <Button type="submit" variant="primary" size="lg" fullWidth loading={loading}>
-              Create Trip
+              ✨ Create Trip
             </Button>
-            <Button 
-              type="button" 
-              variant="secondary" 
-              size="lg" 
+            <Button
+              type="button"
+              variant="secondary"
+              size="lg"
               fullWidth
-              onClick={() => navigate('/dashboard')}
+              onClick={() => navigate('/trips')}
             >
               Cancel
             </Button>

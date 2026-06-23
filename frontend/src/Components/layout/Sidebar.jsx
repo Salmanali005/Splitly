@@ -8,15 +8,16 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
   const { isDark } = useTheme();
 
   const menuItems = [
-    { path: '/dashboard', icon: '▤', label: 'Dashboard' },
-    { path: '/trips', icon: '◈', label: 'Trips' },
-    { path: '/expenses', icon: '💰', label: 'Expenses' },
-    { path: '/add-trip', icon: '+', label: 'Add Trip' },
-    { path: '/members', icon: '◎', label: 'Members' },
-    { path: '/balances', icon: '◉', label: 'Balances' },
-    { path: '/settlements', icon: '◊', label: 'Settlements' },
-    { path: '/profile', icon: '○', label: 'Profile' },
-  ];
+  { path: '/dashboard', icon: '▤', label: 'Dashboard' },
+  { path: '/trips', icon: '◈', label: 'Trips' },
+  { path: '/expenses', icon: '💰', label: 'Expenses' },
+  { path: '/add-trip', icon: '+', label: 'Add Trip' },
+  { path: '/members', icon: '◎', label: 'Members' },
+  { path: '/balances', icon: '◉', label: 'Balances' },
+  { path: '/settlements', icon: '◊', label: 'Settlements' },
+  { path: '/invitations', icon: '✉️', label: 'Invitations' },
+  { path: '/profile', icon: '○', label: 'Profile' },
+];
 
   const isActive = (path) => location.pathname === path;
 
@@ -55,28 +56,28 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
           </button>
         </div>
 
-        {/* Navigation */}
-        <nav className="px-3 py-4 flex-1 overflow-y-auto">
-          <div className="space-y-1">
-            {menuItems.map((item) => (
-              <Link
-                key={item.path}
-                to={item.path}
-                onClick={() => setIsOpen(false)}
-                className={`
-                  flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200
-                  ${isActive(item.path) 
-                    ? 'bg-black dark:bg-white text-white dark:text-black shadow-sm' 
-                    : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-black dark:hover:text-white'
-                  }
-                `}
-              >
-                <span className="text-base flex-shrink-0">{item.icon}</span>
-                <span className="whitespace-nowrap">{item.label}</span>
-              </Link>
-            ))}
-          </div>
-        </nav>
+        {/* Navigation - no scrollbar */}
+<nav className="px-3 py-4 flex-1 overflow-y-auto scrollbar-hide">
+  <div className="space-y-1">
+    {menuItems.map((item) => (
+      <Link
+        key={item.path}
+        to={item.path}
+        onClick={() => setIsOpen(false)}
+        className={`
+          flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200
+          ${isActive(item.path) 
+            ? 'bg-black dark:bg-white text-white dark:text-black shadow-sm' 
+            : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-black dark:hover:text-white'
+          }
+        `}
+      >
+        <span className="text-base flex-shrink-0">{item.icon}</span>
+        <span className="whitespace-nowrap">{item.label}</span>
+      </Link>
+    ))}
+  </div>
+</nav>
 
         {/* Bottom section with user and theme toggle */}
         <div className="p-4 border-t border-gray-200 dark:border-gray-800 flex-shrink-0">
