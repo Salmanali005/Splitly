@@ -10,7 +10,6 @@ A modern, full-stack web application for splitting trip expenses with friends an
 - **📊 Balances** - Real-time balance calculation, simplified debt algorithm
 - **🤝 Settlements** - Track payments, mark debts as paid, auto-settle
 - **🌓 Dark/Light Mode** - Smooth toggle with persistent preference
-- **📱 Responsive** - Works on desktop, tablet, and mobile
 
 ## 🚀 Tech Stack
 - **Frontend:** React 19, Tailwind CSS, React Router, Axios, Context API
