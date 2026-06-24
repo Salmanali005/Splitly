@@ -11,7 +11,6 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
   { path: '/dashboard', icon: '▤', label: 'Dashboard' },
   { path: '/trips', icon: '◈', label: 'Trips' },
   { path: '/expenses', icon: '💰', label: 'Expenses' },
-  { path: '/add-trip', icon: '+', label: 'Add Trip' },
   { path: '/members', icon: '◎', label: 'Members' },
   { path: '/balances', icon: '◉', label: 'Balances' },
   { path: '/settlements', icon: '◊', label: 'Settlements' },

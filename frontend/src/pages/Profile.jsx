@@ -137,7 +137,7 @@ const Profile = () => {
               type="email"
               value={formData.email}
               disabled
-              className="opacity-60 cursor-not-allowed"
+              className="cursor-not-allowed rounded-lg"
             />
             <Input
               label="Phone Number"

@@ -5,7 +5,7 @@ import { trips } from '../services/api';
 
 const Members = () => {
   const [loading, setLoading] = useState(true);
-  const [allMembers, setAllMembers] = useState([]);
+  const [tripMembers, setTripMembers] = useState([]);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -18,31 +18,21 @@ const Members = () => {
       const response = await trips.getAll();
       const tripsList = response.data || [];
       
-      const memberPromises = tripsList.map(trip => 
-        trips.getMembers(trip.id).then(res => ({
+      // Fetch members for each trip
+      const memberPromises = tripsList.map(async (trip) => {
+        const res = await trips.getMembers(trip.id);
+        return {
           tripId: trip.id,
           tripName: trip.name,
           tripDestination: trip.destination,
+          memberCount: trip.member_count || 0,
           members: res.data || []
-        }))
-      );
-      
-      const results = await Promise.all(memberPromises);
-      
-      const memberMap = {};
-      results.forEach(trip => {
-        trip.members.forEach(member => {
-          if (!memberMap[member.user_id]) {
-            memberMap[member.user_id] = {
-              ...member,
-              trips: []
-            };
-          }
-          memberMap[member.user_id].trips.push(trip.tripName);
-        });
+        };
       });
       
-      setAllMembers(Object.values(memberMap));
+      const results = await Promise.all(memberPromises);
+      setTripMembers(results);
+      
     } catch (err) {
       console.error('Error fetching members:', err);
       setError('Failed to load members');
@@ -81,6 +71,8 @@ const Members = () => {
     );
   }
 
+  const totalMembers = tripMembers.reduce((sum, trip) => sum + trip.members.length, 0);
+
   return (
     <MainLayout>
       <style>{`
@@ -93,14 +85,16 @@ const Members = () => {
         .fade-up-2 { animation-delay: 0.1s; }
         .fade-up-3 { animation-delay: 0.15s; }
         .fade-up-4 { animation-delay: 0.2s; }
-        .member-card:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(0,0,0,0.05); }
-        .member-card { transition: all 0.2s ease; }
+        .trip-section { transition: all 0.2s ease; }
+        .trip-section:hover { transform: translateY(-2px); }
+        .member-chip { transition: all 0.2s ease; }
+        .member-chip:hover { transform: scale(1.02); }
       `}</style>
 
       <div className="fade-up fade-up-1 mb-6">
         <p className="text-xs font-semibold tracking-widest text-gray-400 dark:text-gray-500 uppercase mb-1">People</p>
         <h1 className="text-xl lg:text-2xl font-bold text-black dark:text-white tracking-tight">Members</h1>
-        <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">{allMembers.length} people across your trips</p>
+        <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">{totalMembers} people across {tripMembers.length} trips</p>
       </div>
 
       {error && (
@@ -109,7 +103,7 @@ const Members = () => {
         </div>
       )}
 
-      {allMembers.length === 0 ? (
+      {tripMembers.length === 0 ? (
         <div className="bg-white dark:bg-[#1a1a1a] rounded-2xl border border-gray-100 dark:border-gray-800 p-12 text-center">
           <div className="w-12 h-12 bg-gray-100 dark:bg-gray-800 rounded-2xl flex items-center justify-center mx-auto mb-3">
             <svg className="w-6 h-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
@@ -123,32 +117,59 @@ const Members = () => {
           </Link>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {allMembers.map((member, index) => (
-            <div
-              key={member.user_id}
-              className={`member-card fade-up fade-up-${Math.min(index + 2, 4)} bg-white dark:bg-[#1a1a1a] rounded-2xl border border-gray-100 dark:border-gray-800 p-5`}
+        <div className="space-y-6">
+          {tripMembers.map((trip, index) => (
+            <div 
+              key={trip.tripId} 
+              className={`trip-section fade-up fade-up-${Math.min(index + 2, 4)} bg-white dark:bg-[#1a1a1a] rounded-2xl border border-gray-100 dark:border-gray-800 overflow-hidden`}
             >
-              <div className="flex items-center gap-4">
-                <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-lg font-bold flex-shrink-0 ${getBgColor(member.name)}`}>
-                  {getInitials(member.name)}
+              {/* Trip Header */}
+              <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
+                <div>
+                  <Link to={`/trip/${trip.tripId}`} className="font-semibold text-black dark:text-white hover:underline">
+                    {trip.tripName}
+                  </Link>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    {trip.tripDestination || 'No destination'} • {trip.members.length} members
+                  </p>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-black dark:text-white truncate">{member.name}</p>
-                  <p className="text-sm text-gray-500 dark:text-gray-400 truncate">{member.email}</p>
-                  <div className="flex flex-wrap gap-1 mt-1.5">
-                    {member.trips.slice(0, 2).map((trip, idx) => (
-                      <span key={idx} className="text-xs px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400">
-                        {trip}
-                      </span>
+                <Link 
+                  to={`/trip/${trip.tripId}/members`}
+                  className="text-xs text-gray-400 dark:text-gray-500 hover:text-black dark:hover:text-white transition-colors"
+                >
+                  Manage →
+                </Link>
+              </div>
+
+              {/* Member Chips */}
+              <div className="px-6 py-4">
+                {trip.members.length === 0 ? (
+                  <p className="text-sm text-gray-400 dark:text-gray-500 text-center py-2">No members in this trip</p>
+                ) : (
+                  <div className="flex flex-wrap gap-3">
+                    {trip.members.map((member) => (
+                      <div 
+                        key={member.id} 
+                        className="member-chip flex items-center gap-2.5 px-3 py-2 rounded-xl bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700"
+                      >
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${getBgColor(member.name)}`}>
+                          {getInitials(member.name)}
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-black dark:text-white">{member.name}</p>
+                          <p className="text-xs text-gray-400 dark:text-gray-500">{member.email}</p>
+                        </div>
+                        <span className={`text-xs px-2 py-0.5 rounded-full ${
+                          member.role === 'admin' 
+                            ? 'bg-gray-200 dark:bg-gray-700 text-black dark:text-white' 
+                            : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400'
+                        }`}>
+                          {member.role || 'member'}
+                        </span>
+                      </div>
                     ))}
-                    {member.trips.length > 2 && (
-                      <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400">
-                        +{member.trips.length - 2} more
-                      </span>
-                    )}
                   </div>
-                </div>
+                )}
               </div>
             </div>
           ))}

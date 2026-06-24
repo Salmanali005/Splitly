@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import MainLayout from '../Components/layout/MainLayout';
 import { trips } from '../services/api';
+import { formatCurrency } from '../utils/currency';
 
 const Dashboard = () => {
   const [loading, setLoading] = useState(true);
@@ -46,12 +47,6 @@ const Dashboard = () => {
     } finally {
       setLoading(false);
     }
-  };
-
-  const formatCurrency = (val) => {
-    const num = parseFloat(val || 0);
-    if (num >= 1000) return `$${(num / 1000).toFixed(1)}k`;
-    return `$${num.toFixed(2)}`;
   };
 
   const getStatusStyle = (status) => {
@@ -108,6 +103,9 @@ const Dashboard = () => {
     );
   }
 
+  const firstTrip = tripData[0] || {};
+  const defaultCurrency = firstTrip?.currency || 'USD';
+
   return (
     <MainLayout>
       <style>{`
@@ -127,7 +125,6 @@ const Dashboard = () => {
         .trip-arrow { transition: transform 0.2s ease, opacity 0.2s ease; opacity: 0; }
       `}</style>
 
-      {/* Header */}
       <div className="fade-up mb-8 flex items-start justify-between">
         <div>
           <p className="text-xs font-semibold tracking-widest text-gray-400 dark:text-gray-500 uppercase mb-1">Overview</p>
@@ -142,7 +139,6 @@ const Dashboard = () => {
         </Link>
       </div>
 
-      {/* Stat Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-8">
         {[
           {
@@ -160,7 +156,7 @@ const Dashboard = () => {
           },
           {
             label: 'Total Expenses',
-            value: formatCurrency(stats.totalExpenses),
+            value: formatCurrency(stats.totalExpenses, defaultCurrency),
             sub: 'across all trips',
             icon: (
               <svg className="stat-icon w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
@@ -211,10 +207,7 @@ const Dashboard = () => {
         ))}
       </div>
 
-      {/* Main content grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-
-        {/* Trips list — takes 2 cols */}
         <div className="fade-up fade-up-4 lg:col-span-2 bg-white dark:bg-[#1a1a1a] rounded-2xl border border-gray-100 dark:border-gray-800 overflow-hidden">
           <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
             <div>
@@ -261,7 +254,7 @@ const Dashboard = () => {
                   <div className="flex items-center gap-3 flex-shrink-0 ml-4">
                     <div className="text-right">
                       <p className="text-sm font-semibold text-black dark:text-white">
-                        ${parseFloat(trip.total_expenses || 0).toFixed(2)}
+                        {formatCurrency(trip.total_expenses, trip.currency || 'USD')}
                       </p>
                       <span className={`inline-block text-xs font-medium px-2 py-0.5 rounded-full mt-0.5 ${getStatusStyle(trip.status)}`}>
                         {trip.status || 'planning'}
@@ -277,10 +270,7 @@ const Dashboard = () => {
           </div>
         </div>
 
-        {/* Right column */}
         <div className="flex flex-col gap-4">
-
-          {/* Quick actions */}
           <div className="fade-up fade-up-5 bg-white dark:bg-[#1a1a1a] rounded-2xl border border-gray-100 dark:border-gray-800 overflow-hidden">
             <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-800">
               <h2 className="font-semibold text-black dark:text-white text-sm">Quick Actions</h2>
@@ -336,7 +326,6 @@ const Dashboard = () => {
             </div>
           </div>
 
-          {/* Recent activity placeholder / summary */}
           <div className="fade-up fade-up-5 bg-white dark:bg-[#1a1a1a] rounded-2xl border border-gray-100 dark:border-gray-800 p-5">
             <h2 className="font-semibold text-black dark:text-white text-sm mb-4">Expense Breakdown</h2>
             {tripData.length === 0 ? (
@@ -356,7 +345,7 @@ const Dashboard = () => {
                     <div key={trip.id}>
                       <div className="flex justify-between items-center mb-1">
                         <span className="text-xs font-medium text-gray-600 dark:text-gray-300 truncate max-w-[120px]">{trip.name}</span>
-                        <span className="text-xs font-semibold text-black dark:text-white ml-2">${parseFloat(trip.total_expenses || 0).toFixed(0)}</span>
+                        <span className="text-xs font-semibold text-black dark:text-white ml-2">{formatCurrency(trip.total_expenses, trip.currency || 'USD')}</span>
                       </div>
                       <div className="h-1.5 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
                         <div
@@ -370,7 +359,6 @@ const Dashboard = () => {
               </div>
             )}
           </div>
-
         </div>
       </div>
     </MainLayout>

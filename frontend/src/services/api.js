@@ -81,5 +81,11 @@ export const invitations = {
   accept: (token) => api.post(`/invitations/${token}/accept`),
   decline: (token) => api.delete(`/invitations/${token}/decline`),
 };
+// ============ EXPORT ============
+// ============ EXPORT ============
+export const exportApi = {
+  exportPDF: (tripId) => api.get(`/trips/${tripId}/export/pdf`, { responseType: 'blob' }),
+  exportExcel: (tripId) => api.get(`/trips/${tripId}/export/excel`, { responseType: 'blob' }),
+};
 
 export default api;

@@ -16,6 +16,8 @@ const TripMembers = () => {
   const [inviteEmail, setInviteEmail] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [deletingId, setDeletingId] = useState(null);
+  const [hoveredMember, setHoveredMember] = useState(null);
 
   useEffect(() => {
     if (tripId) {
@@ -29,12 +31,18 @@ const TripMembers = () => {
       const [tripRes, membersRes, invitationsRes] = await Promise.all([
         trips.getOne(tripId),
         trips.getMembers(tripId),
-        trips.getInvitations(tripId) // You'll need to add this API endpoint
+        trips.getInvitations ? trips.getInvitations(tripId) : Promise.resolve({ data: [] })
       ]);
       
       setTrip(tripRes.data);
       setMembers(membersRes.data || []);
-      setInvitations(invitationsRes.data || []);
+      
+      // Filter out accepted/expired/cancelled invitations
+      const pendingInvitations = (invitationsRes.data || []).filter(
+        invite => invite.status === 'pending'
+      );
+      setInvitations(pendingInvitations);
+      
     } catch (err) {
       console.error('Error fetching data:', err);
       setError('Failed to load data');
@@ -61,18 +69,46 @@ const TripMembers = () => {
 
   const handleCancelInvitation = async (invitationId) => {
     try {
-      await trips.cancelInvitation(invitationId);
-      fetchData();
+      if (trips.cancelInvitation) {
+        await trips.cancelInvitation(invitationId);
+        fetchData();
+      }
     } catch (err) {
       setError('Failed to cancel invitation');
     }
   };
 
+  const handleDeleteMember = async (memberId, memberName) => {
+    if (!window.confirm(`Are you sure you want to remove ${memberName} from this trip?`)) {
+      return;
+    }
+
+    setDeletingId(memberId);
+    setError('');
+    setSuccess('');
+
+    try {
+      await trips.removeMember(tripId, memberId);
+      setSuccess(`${memberName} has been removed from the trip.`);
+      fetchData();
+    } catch (err) {
+      const errorMsg = err.response?.data?.detail || 'Failed to remove member';
+      setError(errorMsg);
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  const isAdmin = (member) => member?.role === 'admin';
+
   if (loading) {
     return (
       <MainLayout>
         <div className="flex items-center justify-center h-64">
-          <p className="text-gray-500 dark:text-gray-400">Loading members...</p>
+          <div className="flex flex-col items-center gap-3">
+            <div className="w-8 h-8 border-2 border-black dark:border-white border-t-transparent rounded-full animate-spin" />
+            <p className="text-sm text-gray-500 dark:text-gray-400">Loading members...</p>
+          </div>
         </div>
       </MainLayout>
     );
@@ -80,11 +116,53 @@ const TripMembers = () => {
 
   return (
     <MainLayout>
-      <button onClick={() => navigate('/members')} className="flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 hover:text-black dark:hover:text-white transition-colors mb-4">
-        ← Back to Members
+      <style>{`
+        @keyframes fadeUp {
+          from { opacity: 0; transform: translateY(12px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        .fade-up { animation: fadeUp 0.4s ease both; }
+        .fade-up-1 { animation-delay: 0.05s; }
+        .fade-up-2 { animation-delay: 0.1s; }
+        .fade-up-3 { animation-delay: 0.15s; }
+        .member-item {
+          transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .member-item:hover {
+          background-color: rgba(0,0,0,0.02);
+        }
+        .dark .member-item:hover {
+          background-color: rgba(255,255,255,0.02);
+        }
+        .delete-btn {
+          opacity: 0;
+          transform: scale(0.8);
+          transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .member-item:hover .delete-btn {
+          opacity: 1;
+          transform: scale(1);
+        }
+        .delete-btn:hover {
+          transform: scale(1.15) !important;
+          background-color: #fee2e2 !important;
+        }
+        .dark .delete-btn:hover {
+          background-color: #7f1d1d !important;
+        }
+      `}</style>
+
+      <button 
+        onClick={() => navigate('/members')} 
+        className="fade-up fade-up-1 flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 hover:text-black dark:hover:text-white transition-colors mb-4"
+      >
+        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
+        </svg>
+        Back to Members
       </button>
 
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-6">
+      <div className="fade-up fade-up-1 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-6">
         <div>
           <h1 className="text-xl lg:text-2xl font-bold text-black dark:text-white tracking-tight">{trip?.name || 'Trip Members'}</h1>
           <p className="text-gray-500 dark:text-gray-400 mt-0.5 text-sm">
@@ -97,20 +175,20 @@ const TripMembers = () => {
       </div>
 
       {error && (
-        <div className="mb-4 p-3 rounded-xl border border-red-200 dark:border-red-900/30 bg-red-50 dark:bg-red-900/10">
+        <div className="fade-up fade-up-2 mb-4 p-3 rounded-xl border border-red-200 dark:border-red-900/30 bg-red-50 dark:bg-red-900/10">
           <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
         </div>
       )}
 
       {success && (
-        <div className="mb-4 p-3 rounded-xl border border-green-200 dark:border-green-900/30 bg-green-50 dark:bg-green-900/10">
-          <p className="text-sm text-green-600 dark:text-green-400">{success}</p>
+        <div className="fade-up fade-up-2 mb-4 p-3 rounded-xl border border-emerald-200 dark:border-emerald-900/30 bg-emerald-50 dark:bg-emerald-900/10">
+          <p className="text-sm text-emerald-600 dark:text-emerald-400">{success}</p>
         </div>
       )}
 
       {/* Invite Modal */}
       {showInvite && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 animate-[fadeUp_0.3s_ease_both]">
           <div className="bg-white dark:bg-[#1a1a1a] rounded-2xl border border-gray-200 dark:border-gray-800 p-6 max-w-md w-full">
             <h3 className="text-xl font-bold text-black dark:text-white tracking-tight mb-4">Invite Member</h3>
             <form onSubmit={handleInvite} className="space-y-4">
@@ -131,9 +209,9 @@ const TripMembers = () => {
         </div>
       )}
 
-      {/* Pending Invitations */}
+      {/* Pending Invitations - Only show if there are pending ones */}
       {invitations.length > 0 && (
-        <div className="bg-white dark:bg-[#1a1a1a] rounded-2xl border border-gray-200 dark:border-gray-800 p-5 mb-4">
+        <div className="fade-up fade-up-2 bg-white dark:bg-[#1a1a1a] rounded-2xl border border-gray-200 dark:border-gray-800 p-5 mb-4">
           <h3 className="font-semibold text-black dark:text-white mb-3">Pending Invitations</h3>
           <div className="divide-y divide-gray-100 dark:divide-gray-800">
             {invitations.map((invite) => (
@@ -145,12 +223,12 @@ const TripMembers = () => {
                   </p>
                 </div>
                 <div className="flex gap-2">
-                  <span className="text-xs px-2 py-1 rounded-full bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400">
+                  <span className="text-xs px-2 py-1 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400">
                     Pending
                   </span>
                   <button 
                     onClick={() => handleCancelInvitation(invite.id)}
-                    className="text-xs text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
+                    className="text-xs text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 transition-colors"
                   >
                     Cancel
                   </button>
@@ -162,7 +240,7 @@ const TripMembers = () => {
       )}
 
       {/* Members List */}
-      <div className="bg-white dark:bg-[#1a1a1a] rounded-2xl border border-gray-200 dark:border-gray-800 overflow-hidden">
+      <div className="fade-up fade-up-3 bg-white dark:bg-[#1a1a1a] rounded-2xl border border-gray-200 dark:border-gray-800 overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-800">
           <div className="grid grid-cols-3 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
             <span>Member</span>
@@ -176,29 +254,68 @@ const TripMembers = () => {
               <p className="text-gray-500 dark:text-gray-400">No members yet. Invite someone!</p>
             </div>
           ) : (
-            members.map((member) => (
-              <div key={member.id} className="px-6 py-4 hover:bg-gray-50 dark:hover:bg-gray-900 transition-colors">
-                <div className="grid grid-cols-3 items-center">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-xs font-medium text-black dark:text-white">
-                      {member.name?.charAt(0) || 'U'}
+            members.map((member) => {
+              const isAdminUser = isAdmin(member);
+              const currentUserId = parseInt(localStorage.getItem('user_id') || '0');
+              const isCurrentUser = member.user_id === currentUserId;
+              const canDelete = !isAdminUser && !isCurrentUser;
+
+              return (
+                <div 
+                  key={member.id} 
+                  className="member-item px-6 py-4 relative"
+                  onMouseEnter={() => setHoveredMember(member.id)}
+                  onMouseLeave={() => setHoveredMember(null)}
+                >
+                  <div className="grid grid-cols-3 items-center">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-xs font-medium text-black dark:text-white flex-shrink-0">
+                        {member.name?.charAt(0) || 'U'}
+                      </div>
+                      <div>
+                        <span className="font-medium text-black dark:text-white">{member.name || 'Unknown'}</span>
+                        {member.nickname && (
+                          <p className="text-xs text-gray-400 dark:text-gray-500">"{member.nickname}"</p>
+                        )}
+                      </div>
                     </div>
-                    <div>
-                      <span className="font-medium text-black dark:text-white">{member.name || 'Unknown'}</span>
-                      {member.nickname && (
-                        <p className="text-xs text-gray-400 dark:text-gray-500">"{member.nickname}"</p>
+                    <span className="text-sm text-gray-500 dark:text-gray-400">{member.email}</span>
+                    <div className="flex items-center justify-end gap-3">
+                      <span className={`text-sm text-right font-medium ${
+                        isAdminUser ? 'text-black dark:text-white' : 'text-gray-500 dark:text-gray-400'
+                      }`}>
+                        {isAdminUser ? 'Admin' : 'Member'}
+                      </span>
+                      
+                      {canDelete && (
+                        <button
+                          onClick={() => handleDeleteMember(member.id, member.name)}
+                          disabled={deletingId === member.id}
+                          className={`delete-btn w-8 h-8 rounded-full flex items-center justify-center text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all border border-red-200 dark:border-red-800/30 ${
+                            deletingId === member.id ? 'opacity-50 cursor-not-allowed' : ''
+                          }`}
+                          title="Remove member from trip"
+                        >
+                          {deletingId === member.id ? (
+                            <div className="w-4 h-4 border-2 border-red-500 border-t-transparent rounded-full animate-spin" />
+                          ) : (
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          )}
+                        </button>
+                      )}
+                      
+                      {(isAdminUser || isCurrentUser) && (
+                        <span className="text-gray-300 dark:text-gray-600 text-sm" title={isAdminUser ? 'Admin cannot be removed' : 'You cannot remove yourself'}>
+                          🔒
+                        </span>
                       )}
                     </div>
                   </div>
-                  <span className="text-sm text-gray-500 dark:text-gray-400">{member.email}</span>
-                  <span className={`text-sm text-right font-medium ${
-                    member.role === 'admin' ? 'text-black dark:text-white' : 'text-gray-500 dark:text-gray-400'
-                  }`}>
-                    {member.role || 'Member'}
-                  </span>
                 </div>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
       </div>

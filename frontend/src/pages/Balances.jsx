@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import MainLayout from '../Components/layout/MainLayout';
 import { trips } from '../services/api';
+import { formatCurrency } from '../utils/currency';
 
 const Balances = () => {
   const [loading, setLoading] = useState(true);
@@ -66,6 +67,8 @@ const Balances = () => {
     );
   }
 
+  const defaultCurrency = tripsList[0]?.currency || 'USD';
+
   return (
     <MainLayout>
       <style>{`
@@ -100,12 +103,12 @@ const Balances = () => {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         <div className="fade-up fade-up-2 bg-emerald-50 dark:bg-emerald-900/10 border border-emerald-200 dark:border-emerald-800/30 rounded-2xl p-5">
           <p className="text-sm text-emerald-600 dark:text-emerald-400 font-medium">You're Owed</p>
-          <p className="text-2xl font-bold text-emerald-700 dark:text-emerald-300">${summary.owedTo.toFixed(2)}</p>
+          <p className="text-2xl font-bold text-emerald-700 dark:text-emerald-300">{formatCurrency(summary.owedTo, defaultCurrency)}</p>
           <p className="text-xs text-emerald-500 dark:text-emerald-400/70 mt-1">From {tripsList.filter(t => t.user_balance > 0).length} trips</p>
         </div>
         <div className="fade-up fade-up-3 bg-rose-50 dark:bg-rose-900/10 border border-rose-200 dark:border-rose-800/30 rounded-2xl p-5">
           <p className="text-sm text-rose-600 dark:text-rose-400 font-medium">You Owe</p>
-          <p className="text-2xl font-bold text-rose-700 dark:text-rose-300">${summary.youOwe.toFixed(2)}</p>
+          <p className="text-2xl font-bold text-rose-700 dark:text-rose-300">{formatCurrency(summary.youOwe, defaultCurrency)}</p>
           <p className="text-xs text-rose-500 dark:text-rose-400/70 mt-1">From {tripsList.filter(t => t.user_balance < 0).length} trips</p>
         </div>
         <div className="fade-up fade-up-4 bg-gray-50 dark:bg-gray-800/30 border border-gray-200 dark:border-gray-700/30 rounded-2xl p-5">
@@ -147,7 +150,7 @@ const Balances = () => {
                       trip.user_balance < 0 ? 'text-rose-600 dark:text-rose-400' :
                       'text-gray-400 dark:text-gray-500'
                     }`}>
-                      {trip.user_balance > 0 ? '+' : ''}{trip.user_balance?.toFixed(2) || '0.00'}
+                      {trip.user_balance > 0 ? '+' : ''}{formatCurrency(trip.user_balance, trip.currency || 'USD')}
                     </p>
                     <p className="text-xs text-gray-400 dark:text-gray-500">
                       {trip.member_count || 0} members · {trip.expense_count || 0} expenses

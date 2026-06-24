@@ -4,6 +4,7 @@ import MainLayout from '../../Components/layout/MainLayout';
 import Input from '../../Components/common/Input';
 import Button from '../../Components/common/Button';
 import { trips, expenses } from '../../services/api';
+import { formatCurrency } from '../../utils/currency';
 
 const AddExpense = () => {
   const { tripId } = useParams();
@@ -157,6 +158,7 @@ const AddExpense = () => {
   }
 
   const totalShares = calculateTotalShares();
+  const currency = trip?.currency || 'USD';
 
   return (
     <MainLayout>
@@ -206,7 +208,7 @@ const AddExpense = () => {
           />
 
           <Input
-            label={`Amount (${trip?.currency || 'USD'})`}
+            label={`Amount (${currency})`}
             type="number"
             step="0.01"
             value={formData.amount}
@@ -306,7 +308,7 @@ const AddExpense = () => {
                     
                     <div className="w-24 text-right">
                       <span className="text-sm font-medium text-black dark:text-white">
-                        ${amount.toFixed(2)}
+                        {formatCurrency(amount, currency)}
                       </span>
                     </div>
                   </div>
@@ -317,7 +319,7 @@ const AddExpense = () => {
             <div className="mt-3 p-3 bg-gray-100 dark:bg-gray-800 rounded-xl flex justify-between items-center">
               <span className="text-sm font-medium text-black dark:text-white">Total</span>
               <span className="text-sm font-medium text-black dark:text-white">
-                ${parseFloat(formData.amount || 0).toFixed(2)}
+                {formatCurrency(formData.amount, currency)}
               </span>
             </div>
           </div>

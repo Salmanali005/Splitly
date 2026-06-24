@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import MainLayout from '../Components/layout/MainLayout';
 import { trips, settlements as settlementsApi } from '../services/api';
+import { formatCurrency } from '../utils/currency';
 
 const Settlements = () => {
   const [loading, setLoading] = useState(true);
@@ -104,7 +105,7 @@ const Settlements = () => {
                   </p>
                 </div>
                 <div className="text-right">
-                  <p className="font-semibold text-amber-600 dark:text-amber-400">${parseFloat(settlement.amount).toFixed(2)}</p>
+                  <p className="font-semibold text-amber-600 dark:text-amber-400">{formatCurrency(settlement.amount, 'USD')}</p>
                   <span className="text-xs px-2 py-1 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400">
                     Pending
                   </span>
@@ -133,7 +134,7 @@ const Settlements = () => {
                   </p>
                 </div>
                 <div className="text-right">
-                  <p className="font-semibold text-emerald-600 dark:text-emerald-400">${parseFloat(settlement.amount).toFixed(2)}</p>
+                  <p className="font-semibold text-emerald-600 dark:text-emerald-400">{formatCurrency(settlement.amount, 'USD')}</p>
                   <span className="text-xs px-2 py-1 rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400">
                     ✓ Paid
                   </span>
