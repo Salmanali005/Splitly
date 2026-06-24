@@ -6,13 +6,12 @@ from services import split as split_service
 def create_expense(trip_id: int, paid_by: int, description: str, 
                    amount: Decimal, category: str, split_type: str,
                    splits: list, date: datetime = None, notes: str = None) -> dict:
-    """Create an expense with splits"""
     
-    # Validate splits total equals amount
+    # Validate splits total equals amount - with tolerance for floating point
+    # Replace strict equality check with tolerance
     split_total = sum(s['share_amount'] for s in splits)
-    if split_total != amount:
+    if abs(float(split_total) - float(amount)) > 0.02:
         raise Exception(f"Split total {split_total} does not equal expense amount {amount}")
-    
     # Insert expense
     if not date:
         date = datetime.utcnow()

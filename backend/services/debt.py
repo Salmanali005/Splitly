@@ -43,6 +43,82 @@ def calculate_balances(trip_id: int) -> Dict[int, Decimal]:
     
     return dict(balances)
 
+def get_simplified_debts(trip_id: int) -> List[Dict]:
+    """Get simplified debts (minimum transactions) for a specific trip"""
+    from services import trip as trip_service
+    
+    # Get balances for this trip
+    balances = trip_service.get_trip_balances(trip_id)
+    
+    # Convert to dict format expected by algorithm
+    balance_dict = {b['member_id']: b['balance'] for b in balances}
+    
+    # Separate creditors and debtors
+    creditors = []
+    debtors = []
+    
+    for member_id, balance in balance_dict.items():
+        if balance > 0.01:  # Using threshold to avoid floating point issues
+            creditors.append((member_id, balance))
+        elif balance < -0.01:
+            debtors.append((member_id, abs(balance)))
+    
+    if not creditors or not debtors:
+        return []
+    
+    # Get member names
+    member_details = {}
+    for b in balances:
+        member_details[b['member_id']] = b
+    
+    # Greedy algorithm
+    transactions = []
+    i, j = 0, 0
+    
+    while i < len(debtors) and j < len(creditors):
+        debtor_id, debt_amount = debtors[i]
+        creditor_id, credit_amount = creditors[j]
+        
+        settlement = min(debt_amount, credit_amount)
+        
+        transactions.append({
+            'from_member_id': debtor_id,
+            'from_name': member_details.get(debtor_id, {}).get('name', 'Unknown'),
+            'to_member_id': creditor_id,
+            'to_name': member_details.get(creditor_id, {}).get('name', 'Unknown'),
+            'amount': settlement
+        })
+        
+        debtors[i] = (debtor_id, debt_amount - settlement)
+        creditors[j] = (creditor_id, credit_amount - settlement)
+        
+        if debtors[i][1] < 0.01:
+            i += 1
+        if creditors[j][1] < 0.01:
+            j += 1
+    
+    return transactions
+
+
+def get_trip_balance_summary(trip_id: int) -> Dict:
+    """Get complete balance summary for a trip"""
+    from services import trip as trip_service
+    
+    balances = trip_service.get_trip_balances(trip_id)
+    simplified_debts = get_simplified_debts(trip_id)
+    
+    total_owed = sum(b['balance'] for b in balances if b['balance'] > 0)
+    total_owes = sum(abs(b['balance']) for b in balances if b['balance'] < 0)
+    
+    return {
+        'trip_id': trip_id,
+        'total_expenses': total_owed,
+        'total_settlements': total_owes,
+        'member_balances': balances,
+        'simplified_debts': simplified_debts,
+        'settlement_count': len(simplified_debts)
+    }
+
 def get_member_details(trip_id: int) -> Dict[int, Dict]:
     """Get details for all members in a trip"""
     members = db.execute(

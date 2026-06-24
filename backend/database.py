@@ -18,6 +18,7 @@ class Database:
             user=os.getenv('DB_USER', 'postgres'),
             password=os.getenv('DB_PASSWORD', 'password')
         )
+        self.conn.autocommit = False
     
     def execute(self, query, params=None):
         """Execute query and return results"""
@@ -25,7 +26,9 @@ class Database:
         try:
             cursor.execute(query, params or ())
             
-            if query.strip().upper().startswith('SELECT'):
+            # Check if this is a SELECT or has RETURNING
+            query_upper = query.strip().upper()
+            if query_upper.startswith('SELECT') or 'RETURNING' in query_upper:
                 result = cursor.fetchall()
             else:
                 result = cursor.rowcount
@@ -44,19 +47,8 @@ class Database:
         try:
             cursor.execute(query, params or ())
             result = cursor.fetchone()
-            return result
-        except Exception as e:
-            raise e
-        finally:
-            cursor.close()
-    
-    def execute_many(self, query, params_list):
-        """Execute many queries with parameters"""
-        cursor = self.conn.cursor()
-        try:
-            cursor.executemany(query, params_list)
             self.conn.commit()
-            return cursor.rowcount
+            return result
         except Exception as e:
             self.conn.rollback()
             raise e

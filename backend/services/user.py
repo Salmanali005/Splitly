@@ -12,8 +12,6 @@ ALGORITHM = os.getenv('ALGORITHM', 'HS256')
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv('ACCESS_TOKEN_EXPIRE_MINUTES', 30))
 REFRESH_TOKEN_EXPIRE_DAYS = int(os.getenv('REFRESH_TOKEN_EXPIRE_DAYS', 7))
 
-# ============ PASSWORD HASHING ============
-
 def hash_password(password: str) -> str:
     salt = bcrypt.gensalt()
     return bcrypt.hashpw(password.encode('utf-8'), salt).decode('utf-8')
@@ -21,10 +19,7 @@ def hash_password(password: str) -> str:
 def verify_password(password: str, hashed: str) -> bool:
     return bcrypt.checkpw(password.encode('utf-8'), hashed.encode('utf-8'))
 
-# ============ JWT TOKENS ============
-
 def create_access_token(user_id: int, email: str) -> str:
-    """Create JWT access token"""
     payload = {
         'sub': str(user_id),
         'email': email,
@@ -34,7 +29,6 @@ def create_access_token(user_id: int, email: str) -> str:
     return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
 
 def create_refresh_token(user_id: int, email: str) -> str:
-    """Create JWT refresh token"""
     payload = {
         'sub': str(user_id),
         'email': email,
@@ -44,24 +38,18 @@ def create_refresh_token(user_id: int, email: str) -> str:
     return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
 
 def verify_token(token: str) -> dict:
-    """Verify JWT token and return payload"""
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        return payload
+        return jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
     except jwt.ExpiredSignatureError:
         raise Exception("Token expired")
     except jwt.InvalidTokenError:
         raise Exception("Invalid token")
 
 def get_current_user_id(token: str) -> int:
-    """Extract user_id from token"""
     payload = verify_token(token)
     return int(payload['sub'])
 
-# ============ USER CRUD ============
-
 def create_user(email: str, name: str, password: str, phone: str = None) -> dict:
-    """Create a new user"""
     # Check if user exists
     existing = db.execute_one(
         "SELECT id FROM users WHERE email = %s",
@@ -73,7 +61,7 @@ def create_user(email: str, name: str, password: str, phone: str = None) -> dict
     # Hash password
     hashed_password = hash_password(password)
     
-    # Insert user
+    # Insert user and get the result
     result = db.execute(
         """INSERT INTO users (email, name, password_hash, phone, created_at)
            VALUES (%s, %s, %s, %s, %s)
@@ -81,10 +69,13 @@ def create_user(email: str, name: str, password: str, phone: str = None) -> dict
         (email, name, hashed_password, phone, datetime.utcnow())
     )
     
-    return result[0] if result else None
+    # result is a list, get the first item
+    user = result[0] if result and len(result) > 0 else None
+    
+    return user
 
+    
 def authenticate_user(email: str, password: str) -> dict:
-    """Authenticate user with email and password"""
     user = db.execute_one(
         """SELECT id, email, name, password_hash, avatar_url, phone, is_active
            FROM users WHERE email = %s""",
@@ -100,13 +91,11 @@ def authenticate_user(email: str, password: str) -> dict:
     if not verify_password(password, user['password_hash']):
         raise Exception("Invalid email or password")
     
-    # Update last login
     db.execute(
         "UPDATE users SET last_login = %s WHERE id = %s",
         (datetime.utcnow(), user['id'])
     )
     
-    # Generate tokens
     access_token = create_access_token(user['id'], user['email'])
     refresh_token = create_refresh_token(user['id'], user['email'])
     
@@ -123,35 +112,15 @@ def authenticate_user(email: str, password: str) -> dict:
         'token_type': 'bearer'
     }
 
-def refresh_access_token(refresh_token: str) -> str:
-    """Get new access token using refresh token"""
-    payload = verify_token(refresh_token)
-    
-    if payload.get('type') != 'refresh':
-        raise Exception("Invalid token type")
-    
-    user = db.execute_one(
-        "SELECT id, email FROM users WHERE id = %s AND is_active = true",
-        (int(payload['sub']),)
-    )
-    
-    if not user:
-        raise Exception("User not found")
-    
-    return create_access_token(user['id'], user['email'])
-
 def get_user_by_id(user_id: int) -> dict:
-    """Get user by ID"""
     user = db.execute_one(
-        """SELECT id, email, name, avatar_url, phone, created_at, 
-                  last_login, is_active, email_verified
+        """SELECT id, email, name, avatar_url, phone, created_at, last_login, is_active, email_verified
            FROM users WHERE id = %s""",
         (user_id,)
     )
     return user
 
 def get_user_by_email(email: str) -> dict:
-    """Get user by email"""
     user = db.execute_one(
         "SELECT id, email, name, avatar_url, phone FROM users WHERE email = %s",
         (email,)
@@ -159,7 +128,6 @@ def get_user_by_email(email: str) -> dict:
     return user
 
 def update_user(user_id: int, data: dict) -> dict:
-    """Update user profile"""
     fields = []
     values = []
     
@@ -182,13 +150,14 @@ def update_user(user_id: int, data: dict) -> dict:
     values.append(datetime.utcnow())
     values.append(user_id)
     
-    query = f"UPDATE users SET {', '.join(fields)} WHERE id = %s RETURNING id, email, name, avatar_url, phone"
+    db.execute(
+        f"UPDATE users SET {', '.join(fields)} WHERE id = %s",
+        tuple(values)
+    )
     
-    result = db.execute(query, tuple(values))
-    return result[0] if result else None
+    return get_user_by_id(user_id)
 
 def change_password(user_id: int, current_password: str, new_password: str) -> bool:
-    """Change user password"""
     user = db.execute_one(
         "SELECT password_hash FROM users WHERE id = %s",
         (user_id,)
@@ -210,7 +179,6 @@ def change_password(user_id: int, current_password: str, new_password: str) -> b
     return True
 
 def deactivate_user(user_id: int) -> bool:
-    """Deactivate user account"""
     db.execute(
         "UPDATE users SET is_active = false, updated_at = %s WHERE id = %s",
         (datetime.utcnow(), user_id)
@@ -218,9 +186,32 @@ def deactivate_user(user_id: int) -> bool:
     return True
 
 def activate_user(user_id: int) -> bool:
-    """Activate user account"""
     db.execute(
         "UPDATE users SET is_active = true, updated_at = %s WHERE id = %s",
         (datetime.utcnow(), user_id)
     )
     return True
+
+def delete_user(user_id: int) -> bool:
+    db.execute("DELETE FROM users WHERE id = %s", (user_id,))
+    return True
+
+def refresh_access_token(refresh_token: str) -> str:
+    payload = verify_token(refresh_token)
+    
+    if payload.get('type') != 'refresh':
+        raise Exception("Invalid token type")
+    
+    user = db.execute_one(
+        "SELECT id, email FROM users WHERE id = %s AND is_active = true",
+        (int(payload['sub']),)
+    )
+    
+    if not user:
+        raise Exception("User not found")
+    
+    return create_access_token(user['id'], user['email'])
+
+def get_user_by_token(token: str) -> dict:
+    user_id = get_current_user_id(token)
+    return get_user_by_id(user_id)
