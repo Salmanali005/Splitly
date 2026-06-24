@@ -173,7 +173,7 @@ def delete_expense(expense_id: int) -> bool:
         "DELETE FROM expenses WHERE id = %s RETURNING id",
         (expense_id,)
     )
-    return bool(result)
+    return bool(result and len(result) > 0)
 
 def get_expense_categories() -> list:
     """Get all expense categories"""

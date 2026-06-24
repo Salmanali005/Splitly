@@ -2,33 +2,35 @@ from decimal import Decimal
 from typing import List, Dict, Tuple
 from collections import defaultdict
 from database import db
+from datetime import datetime
+import pytz
+
 
 def calculate_balances(trip_id: int) -> Dict[int, Decimal]:
-    """Calculate net balance for each member in a trip.
+    """Calculate net balance for each member in a trip including settlements."""
     
-    Positive balance = member is owed money (should receive)
-    Negative balance = member owes money (should pay)
-    """
-    # Get all members
     members = db.execute(
-        "SELECT id, user_id FROM members WHERE trip_id = %s AND is_active = true",
+        """SELECT m.id as member_id, m.user_id, u.name
+           FROM members m
+           JOIN users u ON m.user_id = u.id
+           WHERE m.trip_id = %s AND m.is_active = true""",
         (trip_id,)
     )
     
-    balances = defaultdict(Decimal)
+    balances = {}
     
     for member in members:
-        member_id = member['id']
+        member_id = member['member_id']
         user_id = member['user_id']
         
-        # Total amount this member paid
+        # Total paid
         paid_result = db.execute_one(
             "SELECT COALESCE(SUM(amount), 0) as total FROM expenses WHERE trip_id = %s AND paid_by = %s",
             (trip_id, user_id)
         )
         paid = Decimal(str(paid_result['total'])) if paid_result else Decimal('0')
         
-        # Total amount this member owes (their share from splits)
+        # Total owed from splits
         owes_result = db.execute_one(
             """SELECT COALESCE(SUM(es.share_amount), 0) as total
                FROM expense_splits es
@@ -38,10 +40,70 @@ def calculate_balances(trip_id: int) -> Dict[int, Decimal]:
         )
         owes = Decimal(str(owes_result['total'])) if owes_result else Decimal('0')
         
-        # Net balance: positive = owed to, negative = owes
-        balances[member_id] = paid - owes
+        # ✅ FIX: Amount RECEIVED from settlements (people paid this member)
+        received_result = db.execute_one(
+            """SELECT COALESCE(SUM(amount), 0) as total
+               FROM settlements 
+               WHERE trip_id = %s AND to_member_id = %s AND status = 'paid'""",
+            (trip_id, member_id)
+        )
+        received = Decimal(str(received_result['total'])) if received_result else Decimal('0')
+        
+        # ✅ FIX: Amount PAID OUT in settlements (this member paid others)
+        paid_out_result = db.execute_one(
+            """SELECT COALESCE(SUM(amount), 0) as total
+               FROM settlements 
+               WHERE trip_id = %s AND from_member_id = %s AND status = 'paid'""",
+            (trip_id, member_id)
+        )
+        paid_out = Decimal(str(paid_out_result['total'])) if paid_out_result else Decimal('0')
+        
+        # ✅ CORRECT FORMULA:
+        # Balance = Paid - Owed - Received + Paid_Out
+        balance = paid - owes - received + paid_out
+        
+        balances[member_id] = balance
     
-    return dict(balances)
+    return balances
+
+
+def calculate_trip_balance_summary(trip_id: int) -> Dict:
+    """Get complete balance summary for a trip"""
+    
+    balances = calculate_balances(trip_id)  # ← NOW USES FIXED FUNCTION!
+    member_details = get_member_details(trip_id)
+    simplified_debts = get_simplified_debts(trip_id)
+    
+    # Calculate totals
+    total_paid = Decimal('0')
+    total_owed = Decimal('0')
+    
+    for member_id, balance in balances.items():
+        if balance > 0:
+            total_owed += balance
+        elif balance < 0:
+            total_paid += abs(balance)
+    
+    # Build member balances list
+    member_balances = []
+    for member_id, balance in balances.items():
+        details = member_details.get(member_id, {})
+        member_balances.append({
+            'member_id': member_id,
+            'user_id': details.get('user_id'),
+            'name': details.get('name', 'Unknown'),
+            'email': details.get('email'),
+            'balance': balance
+        })
+    
+    return {
+        'trip_id': trip_id,
+        'total_expenses': total_paid,
+        'total_settlements': total_owed,
+        'member_balances': member_balances,
+        'simplified_debts': simplified_debts,
+        'settlement_count': len(simplified_debts)
+    }
 
 def get_simplified_debts(trip_id: int) -> List[Dict]:
     """Get simplified debts (minimum transactions) for a specific trip"""
@@ -50,26 +112,78 @@ def get_simplified_debts(trip_id: int) -> List[Dict]:
     # Get balances for this trip
     balances = trip_service.get_trip_balances(trip_id)
     
-    # Convert to dict format expected by algorithm
-    balance_dict = {b['member_id']: b['balance'] for b in balances}
+    if not balances:
+        return []
     
-    # Separate creditors and debtors
-    creditors = []
-    debtors = []
+    # Separate creditors (positive balance) and debtors (negative balance)
+    creditors = []  # (member_id, amount)
+    debtors = []    # (member_id, amount)
     
-    for member_id, balance in balance_dict.items():
-        if balance > 0.01:  # Using threshold to avoid floating point issues
-            creditors.append((member_id, balance))
-        elif balance < -0.01:
-            debtors.append((member_id, abs(balance)))
+    for b in balances:
+        if b['balance'] > 0.01:
+            creditors.append((b['member_id'], b['balance']))
+        elif b['balance'] < -0.01:
+            debtors.append((b['member_id'], abs(b['balance'])))
     
     if not creditors or not debtors:
         return []
     
     # Get member names
-    member_details = {}
+    member_details = {b['member_id']: b for b in balances}
+    
+    # Greedy algorithm
+    transactions = []
+    i, j = 0, 0
+    
+    while i < len(debtors) and j < len(creditors):
+        debtor_id, debt_amount = debtors[i]
+        creditor_id, credit_amount = creditors[j]
+        
+        settlement = min(debt_amount, credit_amount)
+        
+        transactions.append({
+            'from_member_id': debtor_id,
+            'from_name': member_details.get(debtor_id, {}).get('name', 'Unknown'),
+            'to_member_id': creditor_id,
+            'to_name': member_details.get(creditor_id, {}).get('name', 'Unknown'),
+            'amount': settlement
+        })
+        
+        debtors[i] = (debtor_id, debt_amount - settlement)
+        creditors[j] = (creditor_id, credit_amount - settlement)
+        
+        if debtors[i][1] < 0.01:
+            i += 1
+        if creditors[j][1] < 0.01:
+            j += 1
+    
+    return transactions
+    
+def get_simplified_debts(trip_id: int) -> List[Dict]:
+    """Get simplified debts (minimum transactions) for a specific trip"""
+    from services import trip as trip_service
+    
+    # Get balances for this trip - THIS NOW USES THE FIXED get_trip_balances
+    balances = trip_service.get_trip_balances(trip_id)
+    
+    if not balances:
+        return []
+    
+    # Separate creditors (positive balance) and debtors (negative balance)
+    creditors = []  # (member_id, amount)
+    debtors = []    # (member_id, amount)
+    
     for b in balances:
-        member_details[b['member_id']] = b
+        if b['balance'] > 0.01:
+            creditors.append((b['member_id'], b['balance']))
+        elif b['balance'] < -0.01:
+            debtors.append((b['member_id'], abs(b['balance'])))
+    
+    if not creditors or not debtors:
+        return []
+    
+    # Get member names
+    member_details = {b['member_id']: b for b in balances}
     
     # Greedy algorithm
     transactions = []
@@ -260,7 +374,11 @@ def get_settlement_suggestion(trip_id: int, member_id: int) -> List[Dict]:
 
 def create_settlement(trip_id: int, from_member_id: int, to_member_id: int, 
                       amount: Decimal, notes: str = None) -> Dict:
-    """Record a settlement between two members"""
+    from datetime import datetime
+    import pytz
+    
+    def now_utc():
+        return datetime.now(pytz.UTC)
     
     # Validate members exist in trip
     from_member = db.execute_one(
@@ -286,10 +404,11 @@ def create_settlement(trip_id: int, from_member_id: int, to_member_id: int,
         """INSERT INTO settlements (trip_id, from_member_id, to_member_id, amount, notes, created_at)
            VALUES (%s, %s, %s, %s, %s, %s)
            RETURNING id, trip_id, from_member_id, to_member_id, amount, notes, status, created_at""",
-        (trip_id, from_member_id, to_member_id, amount, notes, datetime.utcnow())
+        (trip_id, from_member_id, to_member_id, amount, notes, now_utc())
     )
     
     return result[0] if result else None
+
 
 def mark_settlement_paid(settlement_id: int) -> Dict:
     """Mark a settlement as paid"""
@@ -299,13 +418,14 @@ def mark_settlement_paid(settlement_id: int) -> Dict:
            SET status = 'paid', settled_at = %s 
            WHERE id = %s AND status = 'pending'
            RETURNING id, trip_id, from_member_id, to_member_id, amount, status, settled_at""",
-        (datetime.utcnow(), settlement_id)
+        (datetime.now(pytz.UTC), settlement_id)
     )
     
     if not result:
         raise Exception("Settlement not found or already paid")
     
     return result[0]
+
 
 def get_settlement_history(trip_id: int) -> List[Dict]:
     """Get all settlements for a trip with member names"""
@@ -341,47 +461,16 @@ def get_pending_settlements(trip_id: int) -> List[Dict]:
     )
     return result
 
-def calculate_trip_balance_summary(trip_id: int) -> Dict:
-    """Get complete balance summary for a trip"""
-    
-    balances = calculate_balances(trip_id)
-    member_details = get_member_details(trip_id)
-    simplified_debts = get_simplified_debts(trip_id)
-    
-    # Calculate totals
-    total_paid = Decimal('0')
-    total_owed = Decimal('0')
-    
-    for member_id, balance in balances.items():
-        if balance > 0:
-            total_owed += balance
-        elif balance < 0:
-            total_paid += abs(balance)
-    
-    # Build member balances list
-    member_balances = []
-    for member_id, balance in balances.items():
-        details = member_details.get(member_id, {})
-        member_balances.append({
-            'member_id': member_id,
-            'user_id': details.get('user_id'),
-            'name': details.get('name', 'Unknown'),
-            'email': details.get('email'),
-            'balance': balance  # Positive = owed to, Negative = owes
-        })
-    
-    return {
-        'trip_id': trip_id,
-        'total_expenses': total_paid,
-        'total_settlements': total_owed,
-        'member_balances': member_balances,
-        'simplified_debts': simplified_debts,
-        'settlement_count': len(simplified_debts)
-    }
 
 def settle_all_debts(trip_id: int) -> List[Dict]:
     """Automatically create settlements for all simplified debts"""
     
+    # First, get all pending settlements and mark them as paid
+    pending = get_pending_settlements(trip_id)
+    for p in pending:
+        mark_settlement_paid(p['id'])
+    
+    # Get simplified debts
     debts = get_simplified_debts(trip_id)
     settlements = []
     
@@ -394,9 +483,12 @@ def settle_all_debts(trip_id: int) -> List[Dict]:
             notes="Auto-settled from debt simplification"
         )
         if settlement:
+            # Mark as paid immediately
+            mark_settlement_paid(settlement['id'])
             settlements.append(settlement)
     
     return settlements
+
 
 def is_trip_settled(trip_id: int) -> bool:
     """Check if all debts in a trip are settled"""

@@ -393,10 +393,13 @@ async def create_settlement(trip_id: int, settlement_data: dict, current_user: d
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
+        
 @app.put("/api/settlements/{settlement_id}/paid")
 async def mark_settlement_paid(settlement_id: int, current_user: dict = Depends(get_current_user)):
     try:
         result = debt_service.mark_settlement_paid(settlement_id)
+        if not result:
+            raise HTTPException(status_code=404, detail="Settlement not found")
         return result
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -952,6 +955,17 @@ async def debug_trip_balances(trip_id: int):
         'trip_id': trip_id,
         'members': members,
         'balances': balances
+    }
+
+@app.get("/api/debug/trip/{trip_id}/simplified-debts")
+async def debug_simplified_debts(trip_id: int, current_user: dict = Depends(get_current_user)):
+    """Debug - check simplified debts"""
+    from services import debt as debt_service
+    result = debt_service.get_simplified_debts(trip_id)
+    return {
+        'trip_id': trip_id,
+        'balances': trip_service.get_trip_balances(trip_id),
+        'simplified_debts': result
     }
 
 # ============================================

@@ -112,6 +112,7 @@ def get_trip_details(trip_id: int) -> dict:
     
     return trip
 
+
 def get_trip_balances(trip_id: int) -> list:
     """Get balances for all members in a trip"""
     members = db.execute(
@@ -125,13 +126,13 @@ def get_trip_balances(trip_id: int) -> list:
     balances = []
     for member in members:
         # Total paid by this member
-        paid = db.execute_one(
+        paid_result = db.execute_one(
             "SELECT COALESCE(SUM(amount), 0) as total FROM expenses WHERE trip_id = %s AND paid_by = %s",
             (trip_id, member['user_id'])
         )
         
         # Total owed (their share from splits)
-        owes = db.execute_one(
+        owes_result = db.execute_one(
             """SELECT COALESCE(SUM(es.share_amount), 0) as total
                FROM expense_splits es
                JOIN expenses e ON es.expense_id = e.id
@@ -139,18 +140,43 @@ def get_trip_balances(trip_id: int) -> list:
             (trip_id, member['member_id'])
         )
         
-        paid_total = float(paid['total']) if paid else 0
-        owes_total = float(owes['total']) if owes else 0
+        # Amount RECEIVED from settlements (people paid this member)
+        received_result = db.execute_one(
+            """SELECT COALESCE(SUM(amount), 0) as total
+               FROM settlements 
+               WHERE trip_id = %s AND to_member_id = %s AND status = 'paid'""",
+            (trip_id, member['member_id'])
+        )
+        
+        # Amount PAID OUT in settlements (this member paid others)
+        paid_out_result = db.execute_one(
+            """SELECT COALESCE(SUM(amount), 0) as total
+               FROM settlements 
+               WHERE trip_id = %s AND from_member_id = %s AND status = 'paid'""",
+            (trip_id, member['member_id'])
+        )
+        
+        paid_total = float(paid_result['total']) if paid_result else 0
+        owes_total = float(owes_result['total']) if owes_result else 0
+        received_total = float(received_result['total']) if received_result else 0
+        paid_out_total = float(paid_out_result['total']) if paid_out_result else 0
+        
+        # CORRECT FORMULA:
+        # Balance = Paid - Owed - Received + Paid_Out
+        # If you received money, you are owed LESS (balance decreases)
+        # If you paid money, you owe LESS (balance increases)
+        balance = paid_total - owes_total - received_total + paid_out_total
         
         balances.append({
             'member_id': member['member_id'],
             'user_id': member['user_id'],
             'name': member['name'],
             'email': member['email'],
-            'balance': paid_total - owes_total
+            'balance': balance
         })
     
     return balances
+
 
 def get_trip_settlements(trip_id: int) -> list:
     result = db.execute(
