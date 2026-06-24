@@ -17,6 +17,7 @@ const TripDetail = () => {
   const [activeTab, setActiveTab] = useState('overview');
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState('');
+  const [deletingId, setDeletingId] = useState(null);
 
   const tabs = [
     { id: 'overview', label: 'Overview' },
@@ -56,37 +57,58 @@ const TripDetail = () => {
   };
 
   const handleExport = async (format) => {
-  setExporting(true);
-  setExportError('');
-  
-  try {
-    let response;
-    let fileExtension;
+    setExporting(true);
+    setExportError('');
     
-    if (format === 'pdf') {
-      response = await exportApi.exportPDF(tripId);
-      fileExtension = 'pdf';
-    } else {
-      response = await exportApi.exportExcel(tripId);
-      fileExtension = 'xlsx';
+    try {
+      let response;
+      let fileExtension;
+      
+      if (format === 'pdf') {
+        response = await exportApi.exportPDF(tripId);
+        fileExtension = 'pdf';
+      } else {
+        response = await exportApi.exportExcel(tripId);
+        fileExtension = 'xlsx';
+      }
+      
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `trip_${tripId}_report.${fileExtension}`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      
+    } catch (err) {
+      console.error('Export failed:', err);
+      setExportError('Failed to export report. Please try again.');
+    } finally {
+      setExporting(false);
     }
-    
-    const url = window.URL.createObjectURL(new Blob([response.data]));
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', `trip_${tripId}_report.${fileExtension}`);
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    window.URL.revokeObjectURL(url);
-    
-  } catch (err) {
-    console.error('Export failed:', err);
-    setExportError('Failed to export report. Please try again.');
-  } finally {
-    setExporting(false);
-  }
-};
+  };
+
+  const handleDeleteExpense = async (expenseId) => {
+    if (!window.confirm('Are you sure you want to delete this expense? This action cannot be undone.')) {
+      return;
+    }
+
+    setDeletingId(expenseId);
+    try {
+      await expenses.delete(expenseId);
+      fetchTripData();
+    } catch (err) {
+      console.error('Error deleting expense:', err);
+      alert('Failed to delete expense. Please try again.');
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  const handleEditExpense = (expense) => {
+    navigate(`/trip/${tripId}/edit-expense/${expense.id}`);
+  };
 
   if (loading) {
     return (
@@ -131,6 +153,12 @@ const TripDetail = () => {
         .fade-up-2 { animation-delay: 0.1s; }
         .fade-up-3 { animation-delay: 0.15s; }
         .fade-up-4 { animation-delay: 0.2s; }
+        .expense-item:hover .expense-actions { opacity: 1; }
+        .expense-actions { opacity: 0; transition: opacity 0.2s ease; }
+        .delete-btn:hover { color: #ef4444; }
+        .edit-btn:hover { color: #3b82f6; }
+        .settle-btn { transition: all 0.2s ease; }
+        .settle-btn:hover { transform: scale(1.05); }
       `}</style>
 
       <button onClick={() => navigate('/trips')} className="fade-up fade-up-1 flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 hover:text-black dark:hover:text-white transition-colors mb-4">
@@ -174,39 +202,39 @@ const TripDetail = () => {
             </Link>
             
             {/* Export Dropdown */}
-<div className="relative group">
-  <Button variant="secondary" size="sm" className="flex items-center gap-1" disabled={exporting}>
-    {exporting ? (
-      <span className="flex items-center gap-1">
-        <div className="w-3 h-3 border-2 border-gray-500 border-t-transparent rounded-full animate-spin" />
-        Exporting...
-      </span>
-    ) : (
-      <>
-        📥 Export
-        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-        </svg>
-      </>
-    )}
-  </Button>
-  <div className="absolute right-0 mt-1 w-40 bg-white dark:bg-[#1a1a1a] rounded-xl border border-gray-200 dark:border-gray-700 shadow-lg overflow-hidden opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-10">
-    <button
-      onClick={() => handleExport('pdf')}
-      disabled={exporting}
-      className="flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors w-full text-left"
-    >
-      📄 PDF
-    </button>
-    <button
-      onClick={() => handleExport('excel')}
-      disabled={exporting}
-      className="flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors w-full text-left border-t border-gray-100 dark:border-gray-700"
-    >
-      📊 Excel
-    </button>
-  </div>
-</div>
+            <div className="relative group">
+              <Button variant="secondary" size="sm" className="flex items-center gap-1" disabled={exporting}>
+                {exporting ? (
+                  <span className="flex items-center gap-1">
+                    <div className="w-3 h-3 border-2 border-gray-500 border-t-transparent rounded-full animate-spin" />
+                    Exporting...
+                  </span>
+                ) : (
+                  <>
+                    📥 Export
+                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </>
+                )}
+              </Button>
+              <div className="absolute right-0 mt-1 w-40 bg-white dark:bg-[#1a1a1a] rounded-xl border border-gray-200 dark:border-gray-700 shadow-lg overflow-hidden opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-10">
+                <button
+                  onClick={() => handleExport('pdf')}
+                  disabled={exporting}
+                  className="flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors w-full text-left"
+                >
+                  📄 PDF
+                </button>
+                <button
+                  onClick={() => handleExport('excel')}
+                  disabled={exporting}
+                  className="flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors w-full text-left border-t border-gray-100 dark:border-gray-700"
+                >
+                  📊 Excel
+                </button>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -294,16 +322,43 @@ const TripDetail = () => {
                 <p className="py-4 text-sm text-gray-500 dark:text-gray-400 text-center">No expenses yet. Add your first expense!</p>
               ) : (
                 expensesList.slice(0, 3).map((expense) => (
-                  <div key={expense.id} className="py-2.5 flex justify-between items-center">
+                  <div key={expense.id} className="expense-item py-2.5 flex justify-between items-center">
                     <div>
                       <p className="text-sm font-medium text-black dark:text-white">{expense.description}</p>
                       <p className="text-xs text-gray-500 dark:text-gray-400">
                         {expense.payer_name || 'Unknown'} • {new Date(expense.date).toLocaleDateString()}
                       </p>
                     </div>
-                    <span className="text-sm font-medium text-black dark:text-white">
-                      {formatCurrency(expense.amount, currency)}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium text-black dark:text-white">
+                        {formatCurrency(expense.amount, currency)}
+                      </span>
+                      <div className="expense-actions flex items-center gap-1">
+                        <button
+                          onClick={() => handleEditExpense(expense)}
+                          className="edit-btn p-1 text-gray-400 hover:text-blue-500 transition-colors"
+                          title="Edit expense"
+                        >
+                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
+                          </svg>
+                        </button>
+                        <button
+                          onClick={() => handleDeleteExpense(expense.id)}
+                          disabled={deletingId === expense.id}
+                          className="delete-btn p-1 text-gray-400 hover:text-red-500 transition-colors disabled:opacity-50"
+                          title="Delete expense"
+                        >
+                          {deletingId === expense.id ? (
+                            <div className="w-4 h-4 border-2 border-red-500 border-t-transparent rounded-full animate-spin" />
+                          ) : (
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                            </svg>
+                          )}
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 ))
               )}
@@ -319,16 +374,43 @@ const TripDetail = () => {
               <p className="py-8 text-sm text-gray-500 dark:text-gray-400 text-center">No expenses yet</p>
             ) : (
               expensesList.map((expense) => (
-                <div key={expense.id} className="py-3 flex justify-between items-center">
+                <div key={expense.id} className="expense-item py-3 flex justify-between items-center">
                   <div>
                     <p className="text-sm font-medium text-black dark:text-white">{expense.description}</p>
                     <p className="text-xs text-gray-500 dark:text-gray-400">
                       {expense.payer_name || 'Unknown'} • {new Date(expense.date).toLocaleDateString()}
                     </p>
                   </div>
-                  <span className="text-sm font-medium text-black dark:text-white">
-                    {formatCurrency(expense.amount, currency)}
-                  </span>
+                  <div className="flex items-center gap-3">
+                    <span className="text-sm font-medium text-black dark:text-white">
+                      {formatCurrency(expense.amount, currency)}
+                    </span>
+                    <div className="expense-actions flex items-center gap-1">
+                      <button
+                        onClick={() => handleEditExpense(expense)}
+                        className="edit-btn p-1 text-gray-400 hover:text-blue-500 transition-colors"
+                        title="Edit expense"
+                      >
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
+                        </svg>
+                      </button>
+                      <button
+                        onClick={() => handleDeleteExpense(expense.id)}
+                        disabled={deletingId === expense.id}
+                        className="delete-btn p-1 text-gray-400 hover:text-red-500 transition-colors disabled:opacity-50"
+                        title="Delete expense"
+                      >
+                        {deletingId === expense.id ? (
+                          <div className="w-4 h-4 border-2 border-red-500 border-t-transparent rounded-full animate-spin" />
+                        ) : (
+                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                          </svg>
+                        )}
+                      </button>
+                    </div>
+                  </div>
                 </div>
               ))
             )}

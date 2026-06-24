@@ -1,28 +1,47 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useTheme } from '../contexts/ThemeContext';
 import ThemeToggle from '../common/ThemeToggle';
+import { auth } from '../../services/api';
 
 const Sidebar = ({ isOpen, setIsOpen }) => {
   const location = useLocation();
   const { isDark } = useTheme();
+  const [user, setUser] = useState(null);
+
+  useEffect(() => {
+    fetchUser();
+  }, []);
+
+  const fetchUser = async () => {
+    try {
+      const response = await auth.getMe();
+      setUser(response.data);
+    } catch (err) {
+      console.error('Error fetching user:', err);
+    }
+  };
 
   const menuItems = [
-  { path: '/dashboard', icon: '▤', label: 'Dashboard' },
-  { path: '/trips', icon: '◈', label: 'Trips' },
-  { path: '/expenses', icon: '💰', label: 'Expenses' },
-  { path: '/members', icon: '◎', label: 'Members' },
-  { path: '/balances', icon: '◉', label: 'Balances' },
-  { path: '/settlements', icon: '◊', label: 'Settlements' },
-  { path: '/invitations', icon: '✉️', label: 'Invitations' },
-  { path: '/profile', icon: '○', label: 'Profile' },
-];
+    { path: '/dashboard', icon: '▤', label: 'Dashboard' },
+    { path: '/trips', icon: '◈', label: 'Trips' },
+    { path: '/expenses', icon: '💰', label: 'Expenses' },
+    { path: '/add-trip', icon: '+', label: 'Add Trip' },
+    { path: '/members', icon: '◎', label: 'Members' },
+    { path: '/balances', icon: '◉', label: 'Balances' },
+    { path: '/settlements', icon: '◊', label: 'Settlements' },
+    { path: '/invitations', icon: '✉️', label: 'Invitations' },
+  ];
 
   const isActive = (path) => location.pathname === path;
 
+  const getInitials = (name) => {
+    if (!name) return '?';
+    return name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
+  };
+
   return (
     <>
-      {/* Mobile overlay */}
       {isOpen && (
         <div 
           className="fixed inset-0 z-40 bg-black/50 lg:hidden"
@@ -30,7 +49,6 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
         />
       )}
 
-      {/* Sidebar - slides completely off screen when closed */}
       <aside className={`
         fixed top-0 left-0 z-50 h-full 
         bg-white dark:bg-[#1a1a1a]
@@ -40,10 +58,17 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
         overflow-hidden
         flex flex-col
       `}>
-        {/* Header with toggle */}
         <div className="flex items-center justify-between h-16 px-4 border-b border-gray-200 dark:border-gray-800 flex-shrink-0">
           <Link to="/dashboard" className="flex items-center gap-2">
-            <span className="text-xl font-semibold tracking-tight text-black dark:text-white">HISAAB</span>
+            <svg width="32" height="32" viewBox="0 0 120 120">
+              <rect width="120" height="120" rx="26" fill="#1a1a2e"/>
+              <rect x="24" y="27" width="72" height="19" rx="6" fill="white"/>
+              <rect x="24" y="52" width="72" height="3" rx="1.5" fill="white" opacity="0.3"/>
+              <rect x="24" y="63" width="33" height="19" rx="6" fill="#6C63FF"/>
+              <rect x="63" y="63" width="33" height="19" rx="6" fill="#4CC9B0"/>
+              <path d="M60 55 L74 63" stroke="white" strokeWidth="2" strokeLinecap="round" fill="none" opacity="0.6"/>
+            </svg>
+            <span className="text-xl font-semibold tracking-tight text-black dark:text-white">Splitly</span>
           </Link>
           <button 
             onClick={() => setIsOpen(false)}
@@ -55,47 +80,55 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
           </button>
         </div>
 
-        {/* Navigation - no scrollbar */}
-<nav className="px-3 py-4 flex-1 overflow-y-auto scrollbar-hide">
-  <div className="space-y-1">
-    {menuItems.map((item) => (
-      <Link
-        key={item.path}
-        to={item.path}
-        onClick={() => setIsOpen(false)}
-        className={`
-          flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200
-          ${isActive(item.path) 
-            ? 'bg-black dark:bg-white text-white dark:text-black shadow-sm' 
-            : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-black dark:hover:text-white'
-          }
-        `}
-      >
-        <span className="text-base flex-shrink-0">{item.icon}</span>
-        <span className="whitespace-nowrap">{item.label}</span>
-      </Link>
-    ))}
-  </div>
-</nav>
+        <nav className="px-3 py-4 flex-1 overflow-y-auto scrollbar-hide">
+          <div className="space-y-1">
+            {menuItems.map((item) => (
+              <Link
+                key={item.path}
+                to={item.path}
+                onClick={() => setIsOpen(false)}
+                className={`
+                  flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200
+                  ${isActive(item.path) 
+                    ? 'bg-black dark:bg-white text-white dark:text-black shadow-sm' 
+                    : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-black dark:hover:text-white'
+                  }
+                `}
+              >
+                <span className="text-base flex-shrink-0">{item.icon}</span>
+                <span className="whitespace-nowrap">{item.label}</span>
+              </Link>
+            ))}
+          </div>
+        </nav>
 
-        {/* Bottom section with user and theme toggle */}
+        {/* Bottom section - User info + Theme toggle SEPARATED */}
         <div className="p-4 border-t border-gray-200 dark:border-gray-800 flex-shrink-0">
           <div className="flex items-center justify-between px-2 py-2 rounded-xl bg-gray-50 dark:bg-gray-900">
-            <div className="flex items-center gap-3">
+            {/* User info - clickable to profile */}
+            <Link 
+              to="/profile"
+              onClick={() => setIsOpen(false)}
+              className="flex items-center gap-3 flex-1 min-w-0 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg px-2 py-1 transition-all group"
+            >
               <div className="w-9 h-9 rounded-full bg-black dark:bg-white flex items-center justify-center text-xs font-medium text-white dark:text-black flex-shrink-0">
-                JD
+                {getInitials(user?.name)}
               </div>
-              <div>
-                <p className="text-sm font-medium text-black dark:text-white">John Doe</p>
-                <p className="text-xs text-gray-500 dark:text-gray-400 truncate max-w-[100px]">john@example.com</p>
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-black dark:text-white truncate">{user?.name || 'User'}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{user?.email || ''}</p>
               </div>
+            </Link>
+            
+            {/* Theme toggle - SEPARATE, no link interference */}
+            <div className="flex-shrink-0 ml-2">
+              <ThemeToggle />
             </div>
-            <ThemeToggle />
           </div>
         </div>
       </aside>
 
-      {/* Floating toggle button - always visible when sidebar is closed */}
+      {/* Floating toggle button */}
       {!isOpen && (
         <button 
           onClick={() => setIsOpen(true)}
